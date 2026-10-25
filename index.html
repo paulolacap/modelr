@@ -218,6 +218,8 @@ kbd.k { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--
 .acct-list li > .help { grid-area: w; font-size: 12px; }
 .acct-list li > .btn:nth-of-type(1) { grid-area: o; }
 .acct-list li > .btn:nth-of-type(2) { grid-area: d; }
+.overlay.gate { background: var(--bg); z-index: 60; }
+.acct-brand { margin-bottom: 16px; }
 .acct-msg { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
 .acct-msg.bad { color: var(--bad); }
 #askInput { width: 100%; border: 1.5px solid var(--line); background: var(--panel-2); border-radius: 10px; padding: 11px 12px; font: inherit; font-size: 15px; color: var(--ink); margin-top: 6px; }
@@ -299,7 +301,7 @@ kbd.k { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--
     <button class="btn small" id="btnNew" title="Start a new, empty design">New</button>
     <button class="btn small hide-narrow" id="btnOpen" title="Open a design file you saved earlier">Open</button>
     <button class="btn small hide-narrow" id="btnSave" title="Save this design as a file you can open again later">Save</button>
-    <button class="btn small" id="btnAccount" title="Log in to save designs to your account and open them on any device" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="acct-label hide-narrow" id="btnAccountLabel">Log in</span></button>
+    <button class="btn small" id="btnAccount" title="Your account: save designs and open them on any device" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="acct-label hide-narrow" id="btnAccountLabel">Log in</span></button>
     <button class="btn small ghost" id="btnHelp" title="Keyboard shortcuts and tips">?</button>
     <button class="btn small" id="btnCheck" title="Check the design before printing: size, overhangs, thin walls, print time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10"/></svg>Print check</button>
     <button class="btn primary" id="btnExport" title="Download an STL file for your slicer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>Export STL</button>
@@ -457,9 +459,10 @@ kbd.k { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--
 </div>
 <div class="overlay" id="accountOverlay" hidden>
   <div class="dialog acct" role="dialog" aria-labelledby="acctTitle">
+    <div class="brand acct-brand" id="acctBrand" hidden><span class="brand-mark" aria-hidden="true">◆</span>Shape Workshop</div>
     <div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 id="acctTitle" style="margin:0">Log in</h3><button class="btn small ghost" id="acctClose">Close</button></div>
     <form id="acctOut" class="acct-form">
-      <p class="help">Log in to save designs to your account and open them on any device. You can keep using Shape Workshop without one.</p>
+      <p class="help" id="acctIntro">Log in to use Shape Workshop. New here? Create an account below.</p>
       <div class="field" id="acctNameRow" hidden><label for="acctName">Your name (optional)</label><input id="acctName" type="text" autocomplete="name"></div>
       <div class="field"><label for="acctEmail">Email</label><input id="acctEmail" type="email" autocomplete="email" required></div>
       <div class="field"><label for="acctPass">Password</label><input id="acctPass" type="password" autocomplete="current-password" required></div>
@@ -2575,7 +2578,7 @@ $('snapSel').onchange = (e) => { setSnap(parseFloat(e.target.value)); renderCard
 $('projectName').onchange = (e) => { doc.name = e.target.value.trim() || 'My design'; persist(); };
 
 window.addEventListener('keydown', (e) => {
-  if (ed.open) return;
+  if (ed.open || acctGated()) return;
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
   const mod = e.ctrlKey || e.metaKey;
@@ -2595,7 +2598,7 @@ window.addEventListener('keydown', (e) => {
     case 'ArrowDown': e.preventDefault(); nudge(0, 0, step); break;
     case 'PageUp': e.preventDefault(); nudge(0, step, 0); break;
     case 'PageDown': e.preventDefault(); nudge(0, -step, 0); break;
-    case 'Escape': if (!$('helpOverlay').hidden || !$('checkOverlay').hidden || !$('picOverlay').hidden || !$('askOverlay').hidden || !$('accountOverlay').hidden) { $('helpOverlay').hidden = true; $('checkOverlay').hidden = true; $('askOverlay').hidden = true; $('accountOverlay').hidden = true; picClose(); } else select([]); break;
+    case 'Escape': if (!$('helpOverlay').hidden || !$('checkOverlay').hidden || !$('picOverlay').hidden || !$('askOverlay').hidden || !$('accountOverlay').hidden) { $('helpOverlay').hidden = true; $('checkOverlay').hidden = true; $('askOverlay').hidden = true; acctClose(); picClose(); } else select([]); break;
     default:
       if (k === 'm') setMode('translate');
       else if (k === 'r') setMode('rotate');
@@ -3917,12 +3920,14 @@ $('askInput').oninput = () => { clearTimeout(askTimer); askTimer = setTimeout(as
 $('askInput').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); askBuild(); } else if (e.key === 'Escape') askClose(); };
 $('askBuild').onclick = askBuild;
 // ---------- account (PocketBase on Coolify) ----------
-// Optional sign-in. The server address comes from <meta name="account-url">; without it the Account button stays hidden.
-// Designs saved to an account go to the "designs" collection (see pocketbase/collections.json). Signed out, nothing leaves the browser.
+// Sign-in is required: until someone logs in, a full-screen login covers the app. The server address comes from
+// <meta name="account-url">; without it (or in the claude.ai viewer) there is no login and the app opens as before.
+// Designs saved to an account go to the "designs" collection (see pocketbase/collections.json).
 const ACCT_KEY = 'sw-account';
 const acctUrl = ((document.querySelector('meta[name="account-url"]') || {}).content || '').replace(/\/+$/, '');
 let acct = null; // { token, user }
 let acctMode = 'login';
+function acctGated() { return !!acctUrl && !inViewer && !acct; }
 try { acct = JSON.parse(localStorage.getItem(ACCT_KEY) || 'null'); } catch (e) { acct = null; }
 function acctStore() {
   try { if (acct) localStorage.setItem(ACCT_KEY, JSON.stringify(acct)); else localStorage.removeItem(ACCT_KEY); } catch (e) { /* storage blocked */ }
@@ -3948,6 +3953,10 @@ function acctLabel() { return acct ? (acct.user.name || acct.user.email) : 'Log 
 function acctRender() {
   $('btnAccount').hidden = !acctUrl || inViewer;
   $('btnAccountLabel').textContent = acctLabel();
+  const gated = acctGated();
+  $('accountOverlay').classList.toggle('gate', gated);
+  $('acctClose').hidden = gated; $('acctBrand').hidden = !gated;
+  if (gated && $('accountOverlay').hidden) { $('accountOverlay').hidden = false; acctMsg(''); }
   if ($('accountOverlay').hidden) return;
   $('acctOut').hidden = !!acct; $('acctIn').hidden = !acct;
   if (acct) {
@@ -3957,6 +3966,7 @@ function acctRender() {
   } else {
     const signup = acctMode === 'signup';
     $('acctTitle').textContent = signup ? 'Create an account' : 'Log in';
+    $('acctIntro').textContent = signup ? 'Create an account to start using Shape Workshop. Your designs are saved to it so you can open them on any device.' : 'Log in to use Shape Workshop. New here? Create an account below.';
     $('acctNameRow').hidden = !signup;
     $('acctPass').autocomplete = signup ? 'new-password' : 'current-password';
     $('acctGo').textContent = signup ? 'Create account' : 'Log in';
@@ -3970,7 +3980,7 @@ function acctOpen() {
   if (acct) { $('acctTitle').textContent = 'Your account'; acctRender(); $('acctSave').focus(); }
   else { acctRender(); $('acctEmail').focus(); }
 }
-function acctClose() { $('accountOverlay').hidden = true; }
+function acctClose() { if (!acctGated()) $('accountOverlay').hidden = true; }
 async function acctSubmit(e) {
   e.preventDefault();
   const email = $('acctEmail').value.trim(), password = $('acctPass').value;
@@ -3983,7 +3993,7 @@ async function acctSubmit(e) {
     }
     acctSignedIn(await pb('/api/collections/users/auth-with-password', { method: 'POST', body: { identity: email, password } }));
     $('acctPass').value = '';
-    $('acctTitle').textContent = 'Your account'; acctMsg(''); acctRender();
+    $('acctTitle').textContent = 'Your account'; acctMsg(''); acctClose(); acctRender();
     toast('Logged in as ' + acct.user.email + '.');
   } catch (err) {
     const msg = acctMode === 'login' ? (err.status === 400 ? 'That email and password do not match an account.' : err.message)
@@ -3997,7 +4007,7 @@ async function acctForgot() {
   try { await pb('/api/collections/users/request-password-reset', { method: 'POST', body: { email } }); acctMsg('If that email has an account, a reset link is on its way.'); }
   catch (err) { acctMsg(err.message, true); }
 }
-function acctLogout() { acct = null; acctStore(); doc.cloudId = null; persist(); acctMode = 'login'; acctRender(); acctClose(); toast('Logged out.'); }
+function acctLogout() { acct = null; acctStore(); doc.cloudId = null; persist(); acctMode = 'login'; acctClose(); acctRender(); toast('Logged out.'); }
 async function acctList() {
   const list = $('acctList');
   list.innerHTML = '<li class="help">Loading your designs…</li>';
@@ -4059,6 +4069,7 @@ $('acctForgot').onclick = acctForgot;
 $('acctSave').onclick = acctSave;
 $('acctLogout').onclick = acctLogout;
 acctRender();
+if (acctGated()) setTimeout(() => $('acctEmail').focus(), 0);
 // Check the saved sign-in is still good (and get a fresh token).
 if (acct && acctUrl && !inViewer) pb('/api/collections/users/auth-refresh', { method: 'POST' }).then(acctSignedIn).catch(() => { /* 401 already signs out; offline keeps the old token */ });
 // ---------- example & boot ----------

@@ -1,7 +1,8 @@
 # Accounts (PocketBase on Coolify)
 
-Shape Workshop has an optional **Log in** button. Signed-in people can save designs to their account and open
-them on any device. Signed out, the app works as before and nothing leaves the browser.
+Shape Workshop asks people to log in or create an account before they can use it. Logged in, they can save designs
+to their account and open them on any device. (The login screen is in the page itself, so it keeps people out of the
+app but not out of the static file; the saved designs are what the server protects.)
 
 The page talks to a PocketBase server. Its address is set in `src/head.html`:
 
@@ -9,7 +10,7 @@ The page talks to a PocketBase server. Its address is set in `src/head.html`:
 <meta name="account-url" content="https://pb.jpzl.dev">
 ```
 
-Remove that line (and rebuild) to hide the Log in button.
+Remove that line (and rebuild) to turn the login off and open the app to everyone.
 
 ## Set up PocketBase in Coolify
 

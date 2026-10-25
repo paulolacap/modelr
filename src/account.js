@@ -1,10 +1,12 @@
 // ---------- account (PocketBase on Coolify) ----------
-// Optional sign-in. The server address comes from <meta name="account-url">; without it the Account button stays hidden.
-// Designs saved to an account go to the "designs" collection (see pocketbase/collections.json). Signed out, nothing leaves the browser.
+// Sign-in is required: until someone logs in, a full-screen login covers the app. The server address comes from
+// <meta name="account-url">; without it (or in the claude.ai viewer) there is no login and the app opens as before.
+// Designs saved to an account go to the "designs" collection (see pocketbase/collections.json).
 const ACCT_KEY = 'sw-account';
 const acctUrl = ((document.querySelector('meta[name="account-url"]') || {}).content || '').replace(/\/+$/, '');
 let acct = null; // { token, user }
 let acctMode = 'login';
+function acctGated() { return !!acctUrl && !inViewer && !acct; }
 try { acct = JSON.parse(localStorage.getItem(ACCT_KEY) || 'null'); } catch (e) { acct = null; }
 function acctStore() {
   try { if (acct) localStorage.setItem(ACCT_KEY, JSON.stringify(acct)); else localStorage.removeItem(ACCT_KEY); } catch (e) { /* storage blocked */ }
@@ -30,6 +32,10 @@ function acctLabel() { return acct ? (acct.user.name || acct.user.email) : 'Log 
 function acctRender() {
   $('btnAccount').hidden = !acctUrl || inViewer;
   $('btnAccountLabel').textContent = acctLabel();
+  const gated = acctGated();
+  $('accountOverlay').classList.toggle('gate', gated);
+  $('acctClose').hidden = gated; $('acctBrand').hidden = !gated;
+  if (gated && $('accountOverlay').hidden) { $('accountOverlay').hidden = false; acctMsg(''); }
   if ($('accountOverlay').hidden) return;
   $('acctOut').hidden = !!acct; $('acctIn').hidden = !acct;
   if (acct) {
@@ -39,6 +45,7 @@ function acctRender() {
   } else {
     const signup = acctMode === 'signup';
     $('acctTitle').textContent = signup ? 'Create an account' : 'Log in';
+    $('acctIntro').textContent = signup ? 'Create an account to start using Shape Workshop. Your designs are saved to it so you can open them on any device.' : 'Log in to use Shape Workshop. New here? Create an account below.';
     $('acctNameRow').hidden = !signup;
     $('acctPass').autocomplete = signup ? 'new-password' : 'current-password';
     $('acctGo').textContent = signup ? 'Create account' : 'Log in';
@@ -52,7 +59,7 @@ function acctOpen() {
   if (acct) { $('acctTitle').textContent = 'Your account'; acctRender(); $('acctSave').focus(); }
   else { acctRender(); $('acctEmail').focus(); }
 }
-function acctClose() { $('accountOverlay').hidden = true; }
+function acctClose() { if (!acctGated()) $('accountOverlay').hidden = true; }
 async function acctSubmit(e) {
   e.preventDefault();
   const email = $('acctEmail').value.trim(), password = $('acctPass').value;
@@ -65,7 +72,7 @@ async function acctSubmit(e) {
     }
     acctSignedIn(await pb('/api/collections/users/auth-with-password', { method: 'POST', body: { identity: email, password } }));
     $('acctPass').value = '';
-    $('acctTitle').textContent = 'Your account'; acctMsg(''); acctRender();
+    $('acctTitle').textContent = 'Your account'; acctMsg(''); acctClose(); acctRender();
     toast('Logged in as ' + acct.user.email + '.');
   } catch (err) {
     const msg = acctMode === 'login' ? (err.status === 400 ? 'That email and password do not match an account.' : err.message)
@@ -79,7 +86,7 @@ async function acctForgot() {
   try { await pb('/api/collections/users/request-password-reset', { method: 'POST', body: { email } }); acctMsg('If that email has an account, a reset link is on its way.'); }
   catch (err) { acctMsg(err.message, true); }
 }
-function acctLogout() { acct = null; acctStore(); doc.cloudId = null; persist(); acctMode = 'login'; acctRender(); acctClose(); toast('Logged out.'); }
+function acctLogout() { acct = null; acctStore(); doc.cloudId = null; persist(); acctMode = 'login'; acctClose(); acctRender(); toast('Logged out.'); }
 async function acctList() {
   const list = $('acctList');
   list.innerHTML = '<li class="help">Loading your designs…</li>';
@@ -141,5 +148,6 @@ $('acctForgot').onclick = acctForgot;
 $('acctSave').onclick = acctSave;
 $('acctLogout').onclick = acctLogout;
 acctRender();
+if (acctGated()) setTimeout(() => $('acctEmail').focus(), 0);
 // Check the saved sign-in is still good (and get a fresh token).
 if (acct && acctUrl && !inViewer) pb('/api/collections/users/auth-refresh', { method: 'POST' }).then(acctSignedIn).catch(() => { /* 401 already signs out; offline keeps the old token */ });
