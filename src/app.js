@@ -1263,7 +1263,7 @@ $('snapSel').onchange = (e) => { setSnap(parseFloat(e.target.value)); renderCard
 $('projectName').onchange = (e) => { doc.name = e.target.value.trim() || 'My design'; persist(); };
 
 window.addEventListener('keydown', (e) => {
-  if (ed.open) return;
+  if (ed.open || acctGated()) return;
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
   const mod = e.ctrlKey || e.metaKey;
@@ -1283,7 +1283,7 @@ window.addEventListener('keydown', (e) => {
     case 'ArrowDown': e.preventDefault(); nudge(0, 0, step); break;
     case 'PageUp': e.preventDefault(); nudge(0, step, 0); break;
     case 'PageDown': e.preventDefault(); nudge(0, -step, 0); break;
-    case 'Escape': if (!$('helpOverlay').hidden || !$('checkOverlay').hidden || !$('picOverlay').hidden || !$('askOverlay').hidden || !$('accountOverlay').hidden) { $('helpOverlay').hidden = true; $('checkOverlay').hidden = true; $('askOverlay').hidden = true; $('accountOverlay').hidden = true; picClose(); } else select([]); break;
+    case 'Escape': if (!$('helpOverlay').hidden || !$('checkOverlay').hidden || !$('picOverlay').hidden || !$('askOverlay').hidden || !$('accountOverlay').hidden) { $('helpOverlay').hidden = true; $('checkOverlay').hidden = true; $('askOverlay').hidden = true; acctClose(); picClose(); } else select([]); break;
     default:
       if (k === 'm') setMode('translate');
       else if (k === 'r') setMode('rotate');

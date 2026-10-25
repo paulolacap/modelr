@@ -1,7 +1,7 @@
 # Shape Workshop
 
 A beginner-friendly 3D modeler for making things to 3D print, in the spirit of Tinkercad.
-Everything runs in the browser; nothing is uploaded unless you log in and save a design to your account.
+Everything runs in the browser. You log in first (self-hosted PocketBase); designs are only uploaded when you save them to your account.
 
 ## Use it
 Open `index.html` in Chrome, Edge, Firefox or Safari (it needs an internet
@@ -14,7 +14,7 @@ connection the first time to load Three.js). Export STL saves a `.stl` file dire
 - Solid / hole switch; Group cuts holes out and fuses solids (watertight, via Manifold)
 - Align, duplicate, drop to plate, 90° turns, undo/redo, autosave in the browser
 - Save / open designs as `.json` files
-- Optional login (self-hosted PocketBase): save designs to your account and open them on any device
+- Login required (self-hosted PocketBase): save designs to your account and open them on any device
 - STL export is Z-up, in mm, sitting on the plate
 - Storage makers: storage boxes (size, walls, rounded corners and bottom edge, dividers,
   finger scoops, finger notch, handle slots, label shelf or raised/engraved text,

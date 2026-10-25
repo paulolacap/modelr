@@ -19,7 +19,7 @@
     <button class="btn small" id="btnNew" title="Start a new, empty design">New</button>
     <button class="btn small hide-narrow" id="btnOpen" title="Open a design file you saved earlier">Open</button>
     <button class="btn small hide-narrow" id="btnSave" title="Save this design as a file you can open again later">Save</button>
-    <button class="btn small" id="btnAccount" title="Log in to save designs to your account and open them on any device" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="acct-label hide-narrow" id="btnAccountLabel">Log in</span></button>
+    <button class="btn small" id="btnAccount" title="Your account: save designs and open them on any device" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="acct-label hide-narrow" id="btnAccountLabel">Log in</span></button>
     <button class="btn small ghost" id="btnHelp" title="Keyboard shortcuts and tips">?</button>
     <button class="btn small" id="btnCheck" title="Check the design before printing: size, overhangs, thin walls, print time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10"/></svg>Print check</button>
     <button class="btn primary" id="btnExport" title="Download an STL file for your slicer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>Export STL</button>
@@ -177,9 +177,10 @@
 </div>
 <div class="overlay" id="accountOverlay" hidden>
   <div class="dialog acct" role="dialog" aria-labelledby="acctTitle">
+    <div class="brand acct-brand" id="acctBrand" hidden><span class="brand-mark" aria-hidden="true">◆</span>Shape Workshop</div>
     <div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 id="acctTitle" style="margin:0">Log in</h3><button class="btn small ghost" id="acctClose">Close</button></div>
     <form id="acctOut" class="acct-form">
-      <p class="help">Log in to save designs to your account and open them on any device. You can keep using Shape Workshop without one.</p>
+      <p class="help" id="acctIntro">Log in to use Shape Workshop. New here? Create an account below.</p>
       <div class="field" id="acctNameRow" hidden><label for="acctName">Your name (optional)</label><input id="acctName" type="text" autocomplete="name"></div>
       <div class="field"><label for="acctEmail">Email</label><input id="acctEmail" type="email" autocomplete="email" required></div>
       <div class="field"><label for="acctPass">Password</label><input id="acctPass" type="password" autocomplete="current-password" required></div>
