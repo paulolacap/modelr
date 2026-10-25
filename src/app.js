@@ -892,24 +892,36 @@ const LID_NOTES = {
 };
 function makerForm(o) {
   const p = o.p;
-  if (o.type === 'gfplate') return [{ title: 'Size', note: 'Each square holds a 1 × 1 Gridfinity bin and is 42 mm across. Screw or glue it into a drawer.', fields: [['gx', 'Width', 'squares', 1, 12, 1], ['gy', 'Depth', 'squares', 1, 12, 1]] }];
+  if (o.type === 'gfplate') {
+    const L = gfPlateLayout(p), bx = (L.W - 42 * L.gx) / 2, by = (L.D - 42 * L.gy) / 2;
+    return [
+      { title: 'Size', checks: [['fit', 'Fit a drawer: fill it edge to edge']],
+        fields: p.fit ? [['dw', 'Drawer width', 'mm', 42, 1000, 1], ['dd', 'Drawer depth', 'mm', 42, 1000, 1]] : [['gx', 'Width', 'squares', 1, 12, 1], ['gy', 'Depth', 'squares', 1, 12, 1]],
+        note: p.fit ? `Measure the inside of the drawer and take off about 1 mm so it drops in. That fits ${L.gx} × ${L.gy} squares with a solid border of ${fmt(round(bx, 0.1))} mm at the sides and ${fmt(round(by, 0.1))} mm front and back.` : 'Each square holds a 1 × 1 Gridfinity bin and is 42 mm across. Screw or glue it into a drawer.' },
+      { title: 'Magnets and screws', checks: [['magnets', 'Magnet holes in each square (6 × 2 mm)'], ['screws', 'Countersunk screw hole in each square']],
+        note: p.magnets || p.screws ? 'Adds a 3 mm floor under the grid, so the plate is 7.65 mm tall.' + (p.magnets ? ' Glue 6 × 2 mm magnets into the holes; they line up with magnets in the bins.' : '') + (p.screws ? ' The screw holes take 3.5 mm wood screws to fix the plate into the drawer.' : '') : 'Plain plates are an open frame, the lightest and quickest to print.' },
+    ];
+  }
   if (o.type === 'lid' || o.type === 'picture') return [];
   if (o.type === 'hinge' || o.type === 'latch') return hwForm(o);
   if (o.type === 'joint') return jointForm(o);
   const g = p.style === 'gridfinity';
   return [
-    g ? { title: 'Size', note: '1 unit is 42 mm across and 7 mm tall, so it fits any Gridfinity baseplate.', fields: [['gx', 'Width', 'units', 1, 10, 1], ['gy', 'Depth', 'units', 1, 10, 1], ['gz', 'Height', 'units', 2, 24, 1]] }
+    g ? { title: 'Size', checks: [['halfGrid', 'Half-size feet (21 mm)']], fields: [['gx', 'Width', 'units', 0.5, 10, 0.5], ['gy', 'Depth', 'units', 0.5, 10, 0.5], ['gz', 'Height', 'units', 2, 24, 1]],
+      note: '1 unit is 42 mm across and 7 mm tall, so it fits any Gridfinity baseplate.' + (gfHalf(p) ? ' Half-size feet sit two to a square, so half sizes like 1.5 units fit too. Magnet and screw holes need full-size feet.' : ' Sizes like 1.5 units switch to half-size feet.') }
       : { title: 'Size', note: 'Outside size, walls included.', fields: [['w', 'Width', 'mm', 10, 400, 1], ['d', 'Depth', 'mm', 10, 400, 1], ['h', 'Height', 'mm', 5, 300, 1]] },
     { title: 'Walls', fields: g ? [['wall', 'Wall', 'mm', 0.8, 4, 0.1], ['floor', 'Floor', 'mm', 0.6, 5, 0.1]]
       : [['wall', 'Wall', 'mm', 0.8, 6, 0.1], ['floor', 'Floor', 'mm', 0.6, 6, 0.1], ['radius', 'Corners', 'mm', 0, 30, 0.5], ['soften', 'Bottom edge', 'mm', 0, 10, 0.5]],
       note: g ? '' : 'Corners rounds the upright edges. Bottom edge softens the edge along the bottom.' },
     { title: 'Compartments', ...(p.gfInside ? { fields: [], note: 'The Gridfinity grid takes the place of dividers. Untick "Gridfinity grid on the floor inside" to use compartments.' } : {}), fields: p.gfInside ? [] : [['cols', 'Columns', '', 1, 12, 1], ['rows', 'Rows', '', 1, 12, 1], ['divT', 'Divider', 'mm', 0.6, 4, 0.1], ['divH', 'Divider height', '%', 10, 100, 5]] },
     { title: 'Easy to grab', checks: [['scoop', 'Finger scoop at the front of each row'], ['notch', 'Finger notch in the front wall'], ['handles', 'Handle slots in the sides']], fields: p.scoop ? [['scoopR', 'Scoop size', 'mm', 3, 40, 1]] : [] },
-    { title: 'Label', select: ['label', [['none', 'No label'], ['shelf', 'Label shelf inside each row'], ['raised', 'Raised text on the front'], ['engraved', 'Engraved text on the front']]], text: p.label === 'raised' || p.label === 'engraved' ? ['labelText', 'Text'] : null,
+    { title: 'Label', select: ['label', [['none', 'No label'], ['shelf', 'Label shelf inside each row'], ['raised', 'Raised text on the front'], ['engraved', 'Engraved text on the front']]],
+      selects: p.label === 'shelf' ? [['labelPos', [['full', 'Full width'], ['left', 'Short tab on the left of each compartment'], ['center', 'Short tab in the middle of each compartment'], ['right', 'Short tab on the right of each compartment']]]] : null, text: p.label === 'raised' || p.label === 'engraved' ? ['labelText', 'Text'] : null,
       note: p.label === 'shelf' ? 'A sloped ledge at the back of each row, sized for a small sticker or written label.' : '' },
     !g && { title: 'Lid', select: ['lid', [['none', 'No lid'], ['friction', 'Push-on lid'], ['slide', 'Slide-on lid'], ['hinge', 'Hinged lid (filament pin)'], ['snaphinge', 'Snap-on hinged lid'], ['inner', 'Inner hinged lid (hidden hinge)']]], fields: p.lid !== 'none' ? [['lidT', 'Lid thickness', 'mm', 1, 5, 0.1], ['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: LID_NOTES[p.lid] },
     !g && ['hinge', 'snaphinge', 'inner'].includes(p.lid) && { title: 'Lock', select: ['lock', LOCK_CHOICES], note: p.lock === 'hidden' ? (p.lid === 'inner' ? 'A springy hook under the lid clicks onto a bump inside the front wall, so the outside stays perfectly smooth. Slide a fingernail into the little scoop at the front edge and lift to open.' : 'The hidden clasp only works with the inner hinged lid. Pick that lid above.') : p.lock === 'clasp' ? 'A springy hook on the lid clicks under a ledge on the front of the box. Pull the little lip at the bottom of the hook to open it.' : p.lock === 'padlock' ? 'The lid and the box each get a tab with a hole. Slide a small padlock, a zip tie or a cable tie through both holes. The tab sticks out 12 mm at the front.' : 'Add a lock to keep the lid shut.' },
-    g ? { title: 'Stacking', checks: [['lip', 'Stacking lip so another bin sits on top'], ['magnets', 'Magnet holes under the feet (6 × 2 mm)']] }
+    g ? { title: 'Stacking', checks: [['lip', 'Stacking lip so another bin sits on top'], ['magnets', 'Magnet holes under the feet (6 × 2 mm)'], ['screws', 'Screw holes under the feet (M3)']],
+      note: gfHalf(p) && (p.magnets || p.screws) ? 'Half-size feet have no room for magnet or screw holes, so they are left out.' : p.magnets && p.screws ? 'Each magnet hole has an M3 screw hole above it, the usual Gridfinity layout.' : '' }
       : { title: 'Stacking', checks: [['stack', 'Stacking foot that drops into the box below'], ...(p.stack && p.lid === 'none' ? [['sideLock', 'Side locks that click stacked boxes together']] : [])], fields: p.stack && p.lid === 'none' ? [['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: p.stack ? (p.sideLock ? 'The bottom 3 mm steps in so it sits inside the top of an identical box. Each box has a bump low on both sides and a springy arm that rises past its top edge: press the next box down until both arms click over its bumps. Pull the arms outward to unlock. Needs a box at least 20 mm tall.' : 'The bottom 3 mm steps in so it sits inside the top of an identical box.') : '' },
     !g && { title: 'Gridfinity inside', checks: [['gfInside', 'Gridfinity grid on the floor inside']], note: p.gfInside ? 'A Gridfinity baseplate sits on the inside floor so Gridfinity bins click into it. It fits as many 42 mm squares as the inside allows, so an inside of 84 × 42 mm (or a multiple of 42) fits perfectly. Compartment dividers are turned off.' : '' },
   ].filter(Boolean);
@@ -940,7 +952,7 @@ function makerSections(o) {
   }
   return makerForm(o).filter(Boolean).map((sec) => `<div class="section${closedSecs.has(sec.title) ? ' closed' : ''}">
       <h2 class="fold" role="button" tabindex="0" data-fold="${sec.title}">${sec.title}</h2>
-      ${sec.select ? `<div class="field"><select id="p_${sec.select[0]}" class="sel">${sec.select[1].map(([v, l]) => `<option value="${v}" ${o.p[sec.select[0]] === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>` : ''}
+      ${[sec.select, ...(sec.selects || [])].filter(Boolean).map(([key, opts]) => `<div class="field"><select id="p_${key}" class="sel">${opts.map(([v, l]) => `<option value="${v}" ${(o.p[key] ?? opts[0][0]) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`).join('')}
       ${sec.text ? `<div class="field"><label for="p_${sec.text[0]}">${sec.text[1]}</label><input id="p_${sec.text[0]}" type="text" maxlength="40" value="${esc(o.p[sec.text[0]] || '')}" style="font-family:var(--font-body)"></div>` : ''}
       ${(sec.checks || []).map(([key, l]) => `<label class="check"><input type="checkbox" id="p_${key}" ${o.p[key] ? 'checked' : ''}> ${l}</label>`).join('')}
       ${sec.fields && sec.fields.length ? `<div class="field-grid">${sec.fields.map(([key, l, unit, min, max, step]) => `<div class="field"><label for="p_${key}">${l} <span class="unit">${unit}</span></label><input id="p_${key}" type="number" inputmode="decimal" min="${min}" max="${max}" step="${step}" value="${fmt(o.p[key])}"></div>`).join('')}</div>` : ''}
@@ -964,7 +976,7 @@ function bindMaker(o) {
       $('p_' + key).onchange = (e) => {
         let v = parseFloat(e.target.value);
         if (!isFinite(v)) { renderCard(); return; }
-        v = clamp(step >= 1 ? Math.round(v) : v, min, max);
+        v = clamp(step >= 0.5 ? Math.round(v / step) * step : v, min, max);
         o.p[key] = v; updateMaker(o);
       };
     }
@@ -974,6 +986,7 @@ function bindMaker(o) {
       else o.p[sec.select[0]] = e.target.value;
       updateMaker(o);
     };
+    for (const [key] of sec.selects || []) $('p_' + key).onchange = (e) => { o.p[key] = e.target.value; updateMaker(o); };
     if (sec.text) $('p_' + sec.text[0]).onchange = (e) => { o.p[sec.text[0]] = e.target.value; updateMaker(o); };
   }
 }

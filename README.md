@@ -19,7 +19,9 @@ connection the first time to load Three.js). Export STL saves a `.stl` file dire
 - Storage makers: storage boxes (size, walls, rounded corners and bottom edge, dividers,
   finger scoops, finger notch, handle slots, label shelf or raised/engraved text,
   push-on / slide-on / hinged lids with adjustable fit gap, stacking foot),
-  Gridfinity bins (units, stacking lip, magnet holes) and Gridfinity baseplates
+  Gridfinity bins (units in half steps with 21 mm half-grid feet, compartments, scoops, full-width or short
+  label tabs, stacking lip, magnet and M3 screw holes) and Gridfinity baseplates (magnet pockets, countersunk
+  screw holes, or fill a drawer edge to edge with a solid border)
 - Draw your own: a dot editor for custom outlines. Drag dots, tap "+" on an edge or double-tap
   to add one, double-tap a dot to make it smooth, type exact X/Y, undo, zoom. Extrude (with twist
   and top taper) or spin into cups, bowls and vases. 15 starter templates; basic shapes can be
