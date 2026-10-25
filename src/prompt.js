@@ -41,6 +41,15 @@ const KW = [
   ['peg joint|pegs and holes|peg and hole|dowel joint|dowels|dowel|pegs|peg', 'obj:joint:peg'],
   ['snap joint|snap tabs|snap tab|snap together|snap fit joint', 'obj:joint:snap'],
   ['joint|joints|connector|connectors|connection', 'obj:joint:dovetail'],
+  ['skadis hook|pegboard hook|peg board hook', 'obj:skadis:hook'],
+  ['skadis u hook|skadis cable hook|skadis headphone hook|headphone hook|cable hook|pegboard u hook|u hook', 'obj:skadis:uhook'],
+  ['skadis shelf|pegboard shelf', 'obj:skadis:shelf'],
+  ['skadis tool holder|skadis holder|pegboard tool holder|tool holder|screwdriver holder|pliers holder|plier holder', 'obj:skadis:holder'],
+  ['skadis bin|skadis box|skadis container|skadis basket|pegboard bin|pegboard box|pegboard basket', 'obj:skadis:bin'],
+  ['skadis cup|skadis pen holder|pegboard cup|pegboard pen holder', 'obj:skadis:cup'],
+  ['skadis board|skadis pegboard|skadis tile|skadis panel|pegboard tile|pegboard panel', 'obj:skadis:board'],
+  ['skadis fit test|skadis test|skadis peg|skadis test peg', 'obj:skadis:test'],
+  ['ikea skadis|skadis|pegboard|peg board', 'obj:skadis:hook'],
   ['hinge|hinges', 'obj:hinge'],
   ['living hinge|flexible hinge|flex hinge|bendy hinge', 'obj:hinge:living'],
   ['snap clip|snap fit|snap latch|clip|clips|latch|latches|catch', 'obj:latch:snap'],
@@ -104,7 +113,7 @@ function promptTokens(src) {
   let s = ' ' + src + ' ', quoted = null;
   s = s.replace(/["“”]([^"“”]*[A-Za-z0-9][^"“”]*)["“”]/, (m, t) => { quoted = t.trim(); return ' '; });
   s = s.replace(/[×✕*]/g, ' x ').replace(/(\d)\s*(mm|cm|inches|inch|in|")\s*x\s*(?=\d)/gi, '$1 x ').replace(/one[\s-]piece/gi, ' onepiece ').replace(/\b3d\b/gi, ' ').replace(/(\d)\s*by\s*(?=\d)/gi, '$1 x ')
-    .replace(/(\d)(\s*)([a-zA-Z"])/g, '$1 $3').replace(/([a-zA-Z])(\d)/g, '$1 $2').replace(/(\d)\s*x\s*(?=\d)/gi, '$1 x ').replace(/-/g, ' ');
+    .replace(/(\d)(\s*)([a-zA-Z"])/g, '$1 $3').replace(/([a-zA-Z])(\d)/g, '$1 $2').replace(/(\d)\s*x\s*(?=\d)/gi, '$1 x ').replace(/-/g, ' ').replace(/å/gi, 'a');
   const toks = [];
   for (const m of s.matchAll(/\d+(?:\.\d+)?|"|[A-Za-z']+/g)) {
     const raw = m[0].replace(/'s$/i, '').replace(/'/g, ''); if (!raw) continue;
@@ -345,6 +354,22 @@ function planPrompt(src) {
     if (kind === 'fingers' || kind === 'peg') said.push(`${p.n} ${kind === 'peg' ? 'pegs' : 'fingers'}`);
     said.push(JOINT_KINDS.find(([x]) => x === kind)[1].replace(/ joint$/i, '') + ' joint (two matching blocks)', `${fmt(p.w)} × ${fmt(p.d)} mm each, ${fmt(p.h)} mm tall`);
     parts.push({ maker: 'joint', p, n: cc && !cc.consumed ? countOf(main) : 1 });
+  } else if (main.tag.startsWith('obj:skadis')) {
+    const kind = main.tag.split(':')[2] || 'hook', p = { ...SKADIS_DEFAULTS[kind] };
+    const v = dims ? dims.vals : [], bits = [];
+    if (kind === 'hook') { if (v[0]) p.reach = clamp(v[0], 8, 200); bits.push(`reaches ${fmt(p.reach)} mm`); }
+    else if (kind === 'uhook') { const d = v[0] ?? val('dia'); if (d) p.R = clamp(d / 2, 4, 80); bits.push(`${fmt(p.R * 2)} mm across inside`); }
+    else if (kind === 'cup') { const d = val('dia') ?? (v.length >= 2 ? v[0] : null), h = val('h') ?? v[v.length - 1]; if (d) p.dia = clamp(d, 15, 200); if (h) p.h = clamp(h, 21, 250); bits.push(`${fmt(p.dia)} mm across, ${fmt(p.h)} mm tall`); }
+    else if (kind === 'board') { if (v[0]) p.w = clamp(v[0], 30, 400); if (v[1]) p.h = clamp(v[1], 30, 400); bits.push(`${fmt(p.w)} × ${fmt(p.h)} mm`); }
+    else if (kind !== 'test') {
+      if (v[0]) p.w = v[0]; if (v[1]) p.d = v[1]; if (v[2]) p.h = v[2];
+      if (val('w') != null) p.w = val('w'); if (val('d') != null) p.d = val('d'); if (val('h') != null) p.h = val('h');
+      p.w = clamp(p.w, 20, 300); p.d = clamp(p.d, 10, 200); p.h = clamp(p.h, 21, kind === 'bin' ? 250 : 200);
+      bits.push(`${fmt(p.w)} × ${fmt(p.d)} mm, ${fmt(p.h)} mm tall`);
+    }
+    if (val('gap') != null && p.tol) p.tol = clamp(val('gap'), 0.1, 0.6);
+    said.push('Skådis ' + SKADIS_KINDS.find(([x]) => x === kind)[1].replace(/ \(.*\)/, '').toLowerCase(), ...bits);
+    parts.push({ maker: 'skadis', p, n: countOf(main) });
   } else if (main.tag.startsWith('obj:spin:')) {
     const name = main.tag.slice(9), prof = OUTLINE_TEMPLATES.spin[name];
     const rmax = Math.max(...prof.map((q) => q[0])), zs = prof.map((q) => q[1]), zmin = Math.min(...zs), zmax = Math.max(...zs);
@@ -453,6 +478,7 @@ const ASK_EXAMPLES = [
   '2 print in place hinges 50 mm wide',
   'box 60 x 60 x 30 mm, slide lid, engraved label "PINS"',
   'sliding bolt lock 60 mm',
+  'skadis shelf 120 x 60 mm',
   'magnet catch for 10 x 3 mm magnets',
   'vase 120 mm tall',
   'coaster 90 mm with text "HOME"',
@@ -460,6 +486,7 @@ const ASK_EXAMPLES = [
 const ASK_WORDS = [
   ['box', 'storage box'], ['gridfinity bin', 'fits Gridfinity'], ['gridfinity baseplate', 'grid to hold bins'], ['keychain', 'tag with a hole'], ['sign', 'plate with text'], ['coaster', 'round mat'],
   ['letters', 'standing text'], ['hinge', 'swinging joint'], ['dovetail', 'sliding lock'], ['finger joint', 'interleaved fingers'], ['t slot', 'T-shaped slide'], ['puzzle joint', 'jigsaw shape'], ['pegs and holes', 'push-fit'], ['snap tabs', 'click together'], ['tongue and groove', 'slide-in rail'], ['print in place hinge', 'one piece'], ['filament pin hinge', 'pin from filament'], ['snap on hinge', 'clips together'], ['living hinge', 'bendy strip'],
+  ['skadis hook', 'IKEA pegboard'], ['skadis shelf', 'IKEA pegboard'], ['skadis bin', 'IKEA pegboard'], ['skadis tool holder', 'IKEA pegboard'], ['skadis cup', 'IKEA pegboard'], ['skadis board', 'print a pegboard'],
   ['snap clip', 'springy latch'], ['sliding bolt', 'slide to lock'], ['padlock hasp', 'for a padlock'], ['magnet catch', 'holds with magnets'], ['turn button', 'swivel latch'],
   ['cube', 'shape'], ['cylinder', 'shape'], ['sphere', 'shape'], ['cone', 'shape'], ['pyramid', 'shape'], ['tube', 'shape'], ['ring', 'shape'], ['star', 'shape'], ['heart', 'shape'], ['hexagon', 'shape'], ['wedge', 'shape'],
   ['cup', 'spun shape'], ['bowl', 'spun shape'], ['vase', 'spun shape'], ['knob', 'spun shape'],
@@ -474,6 +501,7 @@ const ASK_NEXT = {
   gridfinity: ['units', 'compartments', 'scoops', 'label shelf', 'magnets', 'no lip'],
   keychain: ['text', 'hole', 'engraved', 'thick'], sign: ['text', 'screw holes', 'engraved', 'thick'], coaster: ['text', 'engraved', 'thick'],
   joint: ['wide', 'tall', 'deep', 'gap'],
+  skadis: ['wide', 'deep', 'tall', 'gap'],
   hinge: ['wide', 'knuckles', 'no screw holes', 'print in place', 'filament pin', 'snap on'], latch: ['no screw holes', 'mm'],
 };
 let askTimer = 0;

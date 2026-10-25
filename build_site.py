@@ -3,7 +3,7 @@ import json, subprocess, re
 d = 'src/'
 head = open(d + 'head.html').read(); body = open(d + 'body.html').read()
 js = open(d + 'app.js').read()
-for mark, f in [('MAKERS', 'makers'), ('HARDWARE', 'hardware'), ('JOINTS', 'joints'), ('EDITOR', 'editor'), ('PICTURE', 'picture'), ('PROMPT', 'prompt'), ('ACCOUNT', 'account')]:
+for mark, f in [('MAKERS', 'makers'), ('HARDWARE', 'hardware'), ('JOINTS', 'joints'), ('SKADIS', 'skadis'), ('EDITOR', 'editor'), ('PICTURE', 'picture'), ('PROMPT', 'prompt'), ('ACCOUNT', 'account')]:
     js = js.replace('// @@%s@@\n' % mark, open(d + f + '.js').read())
 open('dist/site-app.js', 'w').write(js)
 subprocess.run(['npx', 'esbuild', 'dist/site-app.js', '--minify', '--target=esnext', '--format=esm', '--outfile=dist/site-app.min.js', '--log-level=warning'], check=True)
