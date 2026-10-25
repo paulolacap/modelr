@@ -85,6 +85,15 @@ h3 { font-family: var(--font-display); font-weight: 600; font-size: 18px; margin
 }
 .shape:hover { border-color: var(--accent); background: var(--accent-soft); }
 .shape img { width: 48px; height: 48px; pointer-events: none; }
+details.grp { margin-bottom: 4px; }
+details.grp > summary, h2.fold { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: var(--font-display); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 8px 2px; min-height: 36px; user-select: none; }
+details.grp > summary::-webkit-details-marker { display: none; }
+details.grp > summary::before, h2.fold::before { content: ''; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s; flex: none; margin-right: 2px; }
+details.grp[open] > summary::before, .section:not(.closed) > h2.fold::before { transform: rotate(45deg); }
+details.grp > summary:hover, h2.fold:hover { color: var(--ink); }
+details.grp > .shapes { margin-bottom: 10px; }
+.section.closed > :not(h2) { display: none; }
+h2.fold { margin: 0; }
 .bin-note { color: var(--muted); font-size: 12.5px; line-height: 1.45; margin: 0; }
 
 .stage { position: relative; min-width: 0; min-height: 0; background: var(--stage); overflow: hidden; }
@@ -235,7 +244,10 @@ kbd.k { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--
   aside.card { order: 3; border-left: 0; border-top: 1px solid var(--line); }
   .shapes { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 0; padding-bottom: 4px; }
   .shape { flex: 0 0 66px; }
-  .bin h2, .bin-note { display: none; }
+  .bin-note { display: none; }
+  aside.bin { max-height: 34vh; }
+  main.work { grid-template-rows: auto 58vh auto; }
+  .stage { height: 58vh; }
   .seg kbd { display: none; }
   .legend { display: none; }
   #projectName { width: 140px; }

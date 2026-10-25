@@ -440,6 +440,7 @@ function buildPrompt(src) {
   }
   select(added.map((o) => o.id));
   commit();
+  setView('fit');
   return plan;
 }
 

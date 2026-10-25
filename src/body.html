@@ -28,20 +28,13 @@
   <main class="work">
     <aside class="bin" aria-label="Shapes">
       <button class="ask-btn" id="btnAsk" title="Type what you want, like: box 120 x 80 x 50 mm with a hinged lid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg><span>Type what you want…</span></button>
-      <h2>From a picture</h2>
-      <div class="shapes" id="picShapes"></div>
-      <h2>Draw your own</h2>
-      <div class="shapes" id="drawShapes"></div>
-      <h2>Storage</h2>
-      <div class="shapes" id="makerShapes"></div>
-      <h2>Hinges &amp; locks</h2>
-      <div class="shapes" id="hwShapes"></div>
-      <h2>Joints</h2>
-      <div class="shapes" id="jointShapes"></div>
-      <h2>Shapes</h2>
-      <div class="shapes" id="solidShapes"></div>
-      <h2>Holes</h2>
-      <div class="shapes" id="holeShapes"></div>
+      <details class="grp" data-grp="picShapes"><summary>From a picture</summary><div class="shapes" id="picShapes"></div></details>
+      <details class="grp" data-grp="drawShapes"><summary>Draw your own</summary><div class="shapes" id="drawShapes"></div></details>
+      <details class="grp" data-grp="makerShapes"><summary>Storage</summary><div class="shapes" id="makerShapes"></div></details>
+      <details class="grp" data-grp="hwShapes"><summary>Hinges &amp; locks</summary><div class="shapes" id="hwShapes"></div></details>
+      <details class="grp" data-grp="jointShapes"><summary>Joints</summary><div class="shapes" id="jointShapes"></div></details>
+      <details class="grp" data-grp="solidShapes"><summary>Shapes</summary><div class="shapes" id="solidShapes"></div></details>
+      <details class="grp" data-grp="holeShapes"><summary>Holes</summary><div class="shapes" id="holeShapes"></div></details>
       <p class="bin-note">Click a shape to add it, or drag it onto the plate. A <b>hole</b> cuts away whatever it overlaps once you group them together.</p>
     </aside>
 

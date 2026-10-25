@@ -93,6 +93,15 @@ h3 { font-family: var(--font-display); font-weight: 600; font-size: 18px; margin
 }
 .shape:hover { border-color: var(--accent); background: var(--accent-soft); }
 .shape img { width: 48px; height: 48px; pointer-events: none; }
+details.grp { margin-bottom: 4px; }
+details.grp > summary, h2.fold { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: var(--font-display); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 8px 2px; min-height: 36px; user-select: none; }
+details.grp > summary::-webkit-details-marker { display: none; }
+details.grp > summary::before, h2.fold::before { content: ''; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s; flex: none; margin-right: 2px; }
+details.grp[open] > summary::before, .section:not(.closed) > h2.fold::before { transform: rotate(45deg); }
+details.grp > summary:hover, h2.fold:hover { color: var(--ink); }
+details.grp > .shapes { margin-bottom: 10px; }
+.section.closed > :not(h2) { display: none; }
+h2.fold { margin: 0; }
 .bin-note { color: var(--muted); font-size: 12.5px; line-height: 1.45; margin: 0; }
 
 .stage { position: relative; min-width: 0; min-height: 0; background: var(--stage); overflow: hidden; }
@@ -243,7 +252,10 @@ kbd.k { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--
   aside.card { order: 3; border-left: 0; border-top: 1px solid var(--line); }
   .shapes { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 0; padding-bottom: 4px; }
   .shape { flex: 0 0 66px; }
-  .bin h2, .bin-note { display: none; }
+  .bin-note { display: none; }
+  aside.bin { max-height: 34vh; }
+  main.work { grid-template-rows: auto 58vh auto; }
+  .stage { height: 58vh; }
   .seg kbd { display: none; }
   .legend { display: none; }
   #projectName { width: 140px; }
@@ -281,20 +293,13 @@ kbd.k { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--
   <main class="work">
     <aside class="bin" aria-label="Shapes">
       <button class="ask-btn" id="btnAsk" title="Type what you want, like: box 120 x 80 x 50 mm with a hinged lid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg><span>Type what you want…</span></button>
-      <h2>From a picture</h2>
-      <div class="shapes" id="picShapes"></div>
-      <h2>Draw your own</h2>
-      <div class="shapes" id="drawShapes"></div>
-      <h2>Storage</h2>
-      <div class="shapes" id="makerShapes"></div>
-      <h2>Hinges &amp; locks</h2>
-      <div class="shapes" id="hwShapes"></div>
-      <h2>Joints</h2>
-      <div class="shapes" id="jointShapes"></div>
-      <h2>Shapes</h2>
-      <div class="shapes" id="solidShapes"></div>
-      <h2>Holes</h2>
-      <div class="shapes" id="holeShapes"></div>
+      <details class="grp" data-grp="picShapes"><summary>From a picture</summary><div class="shapes" id="picShapes"></div></details>
+      <details class="grp" data-grp="drawShapes"><summary>Draw your own</summary><div class="shapes" id="drawShapes"></div></details>
+      <details class="grp" data-grp="makerShapes"><summary>Storage</summary><div class="shapes" id="makerShapes"></div></details>
+      <details class="grp" data-grp="hwShapes"><summary>Hinges &amp; locks</summary><div class="shapes" id="hwShapes"></div></details>
+      <details class="grp" data-grp="jointShapes"><summary>Joints</summary><div class="shapes" id="jointShapes"></div></details>
+      <details class="grp" data-grp="solidShapes"><summary>Shapes</summary><div class="shapes" id="solidShapes"></div></details>
+      <details class="grp" data-grp="holeShapes"><summary>Holes</summary><div class="shapes" id="holeShapes"></div></details>
       <p class="bin-note">Click a shape to add it, or drag it onto the plate. A <b>hole</b> cuts away whatever it overlaps once you group them together.</p>
     </aside>
 
@@ -2119,6 +2124,32 @@ $('checkOverlay').onclick = (e) => { if (e.target === $('checkOverlay')) $('chec
 
 // ---------- side card ----------
 const card = $('card');
+// Collapsible parts of the right-hand panel; what you close stays closed between shapes.
+const closedSecs = new Set();
+try { JSON.parse(localStorage.getItem('sw-closed') || '[]').forEach((t) => closedSecs.add(t)); } catch (e) { /* storage blocked */ }
+const toggleSec = (h) => {
+  const t = h.dataset.fold, sec = h.parentElement;
+  const shut = !sec.classList.contains('closed');
+  sec.classList.toggle('closed', shut);
+  shut ? closedSecs.add(t) : closedSecs.delete(t);
+  try { localStorage.setItem('sw-closed', JSON.stringify([...closedSecs])); } catch (e) { /* storage blocked */ }
+};
+card.addEventListener('click', (e) => { const h = e.target.closest('h2.fold'); if (h) toggleSec(h); });
+card.addEventListener('keydown', (e) => { const h = e.target.closest && e.target.closest('h2.fold'); if (h && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleSec(h); } });
+// Shape groups on the left: open the handy ones, remember the rest.
+{
+  const small = matchMedia('(max-width: 860px)').matches;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('sw-groups')); } catch (e) { /* storage blocked */ }
+  const groups = [...document.querySelectorAll('details.grp')];
+  for (const d of groups) {
+    const id = d.dataset.grp;
+    d.open = saved && id in saved ? !!saved[id] : !small && ['makerShapes', 'solidShapes'].includes(id);
+    d.addEventListener('toggle', () => {
+      try { localStorage.setItem('sw-groups', JSON.stringify(Object.fromEntries(groups.map((x) => [x.dataset.grp, x.open])))); } catch (e) { /* storage blocked */ }
+    });
+  }
+}
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function shapeLabel(o) {
   if (o.type === 'group') return o.hole ? 'Grouped hole' : 'Grouped shape';
@@ -2149,7 +2180,7 @@ function makerForm(o) {
     { title: 'Walls', fields: g ? [['wall', 'Wall', 'mm', 0.8, 4, 0.1], ['floor', 'Floor', 'mm', 0.6, 5, 0.1]]
       : [['wall', 'Wall', 'mm', 0.8, 6, 0.1], ['floor', 'Floor', 'mm', 0.6, 6, 0.1], ['radius', 'Corners', 'mm', 0, 30, 0.5], ['soften', 'Bottom edge', 'mm', 0, 10, 0.5]],
       note: g ? '' : 'Corners rounds the upright edges. Bottom edge softens the edge along the bottom.' },
-    { title: 'Compartments', fields: [['cols', 'Columns', '', 1, 12, 1], ['rows', 'Rows', '', 1, 12, 1], ['divT', 'Divider', 'mm', 0.6, 4, 0.1], ['divH', 'Divider height', '%', 10, 100, 5]] },
+    { title: 'Compartments', ...(p.gfInside ? { fields: [], note: 'The Gridfinity grid takes the place of dividers. Untick "Gridfinity grid on the floor inside" to use compartments.' } : {}), fields: p.gfInside ? [] : [['cols', 'Columns', '', 1, 12, 1], ['rows', 'Rows', '', 1, 12, 1], ['divT', 'Divider', 'mm', 0.6, 4, 0.1], ['divH', 'Divider height', '%', 10, 100, 5]] },
     { title: 'Easy to grab', checks: [['scoop', 'Finger scoop at the front of each row'], ['notch', 'Finger notch in the front wall'], ['handles', 'Handle slots in the sides']], fields: p.scoop ? [['scoopR', 'Scoop size', 'mm', 3, 40, 1]] : [] },
     { title: 'Label', select: ['label', [['none', 'No label'], ['shelf', 'Label shelf inside each row'], ['raised', 'Raised text on the front'], ['engraved', 'Engraved text on the front']]], text: p.label === 'raised' || p.label === 'engraved' ? ['labelText', 'Text'] : null,
       note: p.label === 'shelf' ? 'A sloped ledge at the back of each row, sized for a small sticker or written label.' : '' },
@@ -2184,8 +2215,8 @@ function makerSections(o) {
     const box = byId(o.p.boxId);
     return `<div class="section"><p class="help">${box ? 'This lid is made to fit its box. Change the lid style, thickness or fit gap on the box and the lid follows.' : 'The box this lid was made for is gone, so this lid no longer updates.'}</p>${box ? '<button class="btn small" id="mSelBox">Select the box</button>' : ''}</div>`;
   }
-  return makerForm(o).map((sec) => `<div class="section">
-      <h2>${sec.title}</h2>
+  return makerForm(o).filter(Boolean).map((sec) => `<div class="section${closedSecs.has(sec.title) ? ' closed' : ''}">
+      <h2 class="fold" role="button" tabindex="0" data-fold="${sec.title}">${sec.title}</h2>
       ${sec.select ? `<div class="field"><select id="p_${sec.select[0]}" class="sel">${sec.select[1].map(([v, l]) => `<option value="${v}" ${o.p[sec.select[0]] === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>` : ''}
       ${sec.text ? `<div class="field"><label for="p_${sec.text[0]}">${sec.text[1]}</label><input id="p_${sec.text[0]}" type="text" maxlength="40" value="${esc(o.p[sec.text[0]] || '')}" style="font-family:var(--font-body)"></div>` : ''}
       ${(sec.checks || []).map(([key, l]) => `<label class="check"><input type="checkbox" id="p_${key}" ${o.p[key] ? 'checked' : ''}> ${l}</label>`).join('')}
@@ -3756,6 +3787,7 @@ function buildPrompt(src) {
   }
   select(added.map((o) => o.id));
   commit();
+  setView('fit');
   return plan;
 }
 

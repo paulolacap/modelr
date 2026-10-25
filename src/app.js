@@ -847,6 +847,32 @@ $('checkOverlay').onclick = (e) => { if (e.target === $('checkOverlay')) $('chec
 
 // ---------- side card ----------
 const card = $('card');
+// Collapsible parts of the right-hand panel; what you close stays closed between shapes.
+const closedSecs = new Set();
+try { JSON.parse(localStorage.getItem('sw-closed') || '[]').forEach((t) => closedSecs.add(t)); } catch (e) { /* storage blocked */ }
+const toggleSec = (h) => {
+  const t = h.dataset.fold, sec = h.parentElement;
+  const shut = !sec.classList.contains('closed');
+  sec.classList.toggle('closed', shut);
+  shut ? closedSecs.add(t) : closedSecs.delete(t);
+  try { localStorage.setItem('sw-closed', JSON.stringify([...closedSecs])); } catch (e) { /* storage blocked */ }
+};
+card.addEventListener('click', (e) => { const h = e.target.closest('h2.fold'); if (h) toggleSec(h); });
+card.addEventListener('keydown', (e) => { const h = e.target.closest && e.target.closest('h2.fold'); if (h && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleSec(h); } });
+// Shape groups on the left: open the handy ones, remember the rest.
+{
+  const small = matchMedia('(max-width: 860px)').matches;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('sw-groups')); } catch (e) { /* storage blocked */ }
+  const groups = [...document.querySelectorAll('details.grp')];
+  for (const d of groups) {
+    const id = d.dataset.grp;
+    d.open = saved && id in saved ? !!saved[id] : !small && ['makerShapes', 'solidShapes'].includes(id);
+    d.addEventListener('toggle', () => {
+      try { localStorage.setItem('sw-groups', JSON.stringify(Object.fromEntries(groups.map((x) => [x.dataset.grp, x.open])))); } catch (e) { /* storage blocked */ }
+    });
+  }
+}
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function shapeLabel(o) {
   if (o.type === 'group') return o.hole ? 'Grouped hole' : 'Grouped shape';
@@ -877,7 +903,7 @@ function makerForm(o) {
     { title: 'Walls', fields: g ? [['wall', 'Wall', 'mm', 0.8, 4, 0.1], ['floor', 'Floor', 'mm', 0.6, 5, 0.1]]
       : [['wall', 'Wall', 'mm', 0.8, 6, 0.1], ['floor', 'Floor', 'mm', 0.6, 6, 0.1], ['radius', 'Corners', 'mm', 0, 30, 0.5], ['soften', 'Bottom edge', 'mm', 0, 10, 0.5]],
       note: g ? '' : 'Corners rounds the upright edges. Bottom edge softens the edge along the bottom.' },
-    { title: 'Compartments', fields: [['cols', 'Columns', '', 1, 12, 1], ['rows', 'Rows', '', 1, 12, 1], ['divT', 'Divider', 'mm', 0.6, 4, 0.1], ['divH', 'Divider height', '%', 10, 100, 5]] },
+    { title: 'Compartments', ...(p.gfInside ? { fields: [], note: 'The Gridfinity grid takes the place of dividers. Untick "Gridfinity grid on the floor inside" to use compartments.' } : {}), fields: p.gfInside ? [] : [['cols', 'Columns', '', 1, 12, 1], ['rows', 'Rows', '', 1, 12, 1], ['divT', 'Divider', 'mm', 0.6, 4, 0.1], ['divH', 'Divider height', '%', 10, 100, 5]] },
     { title: 'Easy to grab', checks: [['scoop', 'Finger scoop at the front of each row'], ['notch', 'Finger notch in the front wall'], ['handles', 'Handle slots in the sides']], fields: p.scoop ? [['scoopR', 'Scoop size', 'mm', 3, 40, 1]] : [] },
     { title: 'Label', select: ['label', [['none', 'No label'], ['shelf', 'Label shelf inside each row'], ['raised', 'Raised text on the front'], ['engraved', 'Engraved text on the front']]], text: p.label === 'raised' || p.label === 'engraved' ? ['labelText', 'Text'] : null,
       note: p.label === 'shelf' ? 'A sloped ledge at the back of each row, sized for a small sticker or written label.' : '' },
@@ -912,8 +938,8 @@ function makerSections(o) {
     const box = byId(o.p.boxId);
     return `<div class="section"><p class="help">${box ? 'This lid is made to fit its box. Change the lid style, thickness or fit gap on the box and the lid follows.' : 'The box this lid was made for is gone, so this lid no longer updates.'}</p>${box ? '<button class="btn small" id="mSelBox">Select the box</button>' : ''}</div>`;
   }
-  return makerForm(o).map((sec) => `<div class="section">
-      <h2>${sec.title}</h2>
+  return makerForm(o).filter(Boolean).map((sec) => `<div class="section${closedSecs.has(sec.title) ? ' closed' : ''}">
+      <h2 class="fold" role="button" tabindex="0" data-fold="${sec.title}">${sec.title}</h2>
       ${sec.select ? `<div class="field"><select id="p_${sec.select[0]}" class="sel">${sec.select[1].map(([v, l]) => `<option value="${v}" ${o.p[sec.select[0]] === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>` : ''}
       ${sec.text ? `<div class="field"><label for="p_${sec.text[0]}">${sec.text[1]}</label><input id="p_${sec.text[0]}" type="text" maxlength="40" value="${esc(o.p[sec.text[0]] || '')}" style="font-family:var(--font-body)"></div>` : ''}
       ${(sec.checks || []).map(([key, l]) => `<label class="check"><input type="checkbox" id="p_${key}" ${o.p[key] ? 'checked' : ''}> ${l}</label>`).join('')}
