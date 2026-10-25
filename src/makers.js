@@ -188,12 +188,21 @@ function buildStorage(p) {
       cuts2.push(slab(k, -iW / 2 - d.gd, iW / 2 + d.gd, -D / 2 - 1, -iD / 2 + 0.01, d.gz0, H + 1));
     }
     // Hinged lid: knuckles at both ends of the back edge, pin hole for a piece of 1.75 mm filament
-    if (!g && p.lid === 'hinge') {
+    if (!g && (p.lid === 'hinge' || p.lid === 'snaphinge')) {
       const hk = hingeLayout(d, p);
       for (const [x0, x1] of [hk.segs[0], hk.segs[2]]) {
         adds.push(k(MF.hull([cylX(k, x0, x1, hk.y, hk.z, hk.kr), slab(k, x0, x1, D / 2 - 0.02, D / 2, hk.z - 2 * hk.kr - 2, hk.z)])));
       }
-      cuts2.push(cylX(k, -W / 2 - 1, W / 2 + 1, hk.y, hk.z, hk.pin));
+      if (p.lid === 'hinge') cuts2.push(cylX(k, -W / 2 - 1, W / 2 + 1, hk.y, hk.z, hk.pin));
+      else {
+        // Open sockets on the faces that look at the lid's knuckle; the pegs press in from above and click.
+        const sd = snapSock(hk), pr = SNAP_PEG, sr = pr + p.tol * 0.5;
+        for (const [xi, dir] of [[hk.segs[0][1], 1], [hk.segs[2][0], -1]]) {
+          const xa = Math.min(xi, xi - dir * sd), xb = Math.max(xi, xi - dir * sd);
+          cuts2.push(cylX(k, xa - (dir < 0 ? 0.01 : 0), xb + (dir > 0 ? 0.01 : 0), hk.y, hk.z, sr));
+          cuts2.push(slab(k, xa - (dir < 0 ? 0.01 : 0), xb + (dir > 0 ? 0.01 : 0), hk.y - pr * 0.8, hk.y + pr * 0.8, hk.z, hk.z + hk.kr + 1));
+        }
+      }
     }
 
     let body = k(unionAll(k, solids).subtract(unionAll(k, cuts)));
@@ -202,6 +211,8 @@ function buildStorage(p) {
     return manifoldToGeom(body);
   });
 }
+const SNAP_PEG = 1.7;
+const snapSock = (hk) => Math.min(2.4, (hk.segs[0][1] - hk.segs[0][0]) - 1.2);
 function hingeLayout(d, p) {
   const kr = 3.5, gap = p.tol + 0.3;
   const x0 = -d.W / 2 + d.R + 1, x1 = d.W / 2 - d.R - 1, seg = (x1 - x0 - 2 * gap) / 3;
@@ -222,14 +233,22 @@ function buildLid(p) {
       const plate = rrPrism(k, lw, back + D / 2, 0.6, 0, t, 0, (back - D / 2) / 2);
       const grip = slab(k, -10, 10, -D / 2 + 1.5, -D / 2 + 3.5, t - 0.01, t + 1);
       lid = k(MF.union([plate, grip]));
-    } else if (p.lid === 'hinge') {
+    } else if (p.lid === 'hinge' || p.lid === 'snaphinge') {
       // Built where it sits on the box (top of box at z = H), then flipped to print plate-down.
       const hk = hingeLayout(d, p);
       const plate = rrPrism(k, W, D, R, d.H, d.H + t);
       const [x0, x1] = hk.segs[1];
       const knuckle = k(MF.hull([cylX(k, x0, x1, hk.y, hk.z, hk.kr), slab(k, x0, x1, D / 2 - 0.02, D / 2, d.H, d.H + t)]));
       const tab = slab(k, -8, 8, -D / 2 - 4, -D / 2 + 1, d.H, d.H + t);
-      lid = k(k(MF.union([plate, knuckle, tab])).subtract(cylX(k, -W / 2 - 1, W / 2 + 1, hk.y, hk.z, hk.pin)));
+      if (p.lid === 'hinge') lid = k(k(MF.union([plate, knuckle, tab])).subtract(cylX(k, -W / 2 - 1, W / 2 + 1, hk.y, hk.z, hk.pin)));
+      else {
+        const pr = SNAP_PEG, pl = (hk.segs[1][0] - hk.segs[0][1]) + snapSock(hk) - 0.3, pegs = [];
+        for (const [xe, dir] of [[x0, -1], [x1, 1]]) {
+          const xt = xe + dir * pl, ch = 0.6;
+          pegs.push(k(MF.hull([cylX(k, Math.min(xe - dir, xt - dir * ch), Math.max(xe - dir, xt - dir * ch), hk.y, hk.z, pr), cylX(k, Math.min(xt, xt - dir * ch), Math.max(xt, xt - dir * ch), hk.y, hk.z, pr - 0.6)])));
+        }
+        lid = k(MF.union([plate, knuckle, tab, ...pegs]));
+      }
       lid = k(k(lid.rotate([180, 0, 0])).translate([0, 0, d.H + t]));
     } else {
       // Friction fit: a plate with a lip that pushes into the box opening.

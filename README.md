@@ -26,7 +26,7 @@ connection the first time to load Three.js). Export STL saves a `.stl` file dire
 - From a picture (all in the browser, no AI): trace a logo or silhouette into editable outlines,
   lithophane, embossed relief tile, and HueForge-style colour layers (filament stack with TD values,
   layer height, simulated colour preview, colour-change list, height-map PNG)
-- Hinges & locks: print-in-place, filament-pin, snap-on and living hinges; snap clip, sliding bolt,
+- Hinges & locks: print-in-place, filament-pin, snap-on (peg and socket, like a printed box lid) and living hinges; snap clip, sliding bolt,
   padlock hasp, magnet catch and turn button. Each has screw holes (optionally countersunk) and a fit gap
 - Type what you want: a no-AI keyword box ("box 120 x 80 x 50 mm, 3 x 2 compartments, hinged lid").
   It suggests words as you type and shows what it understood and what it skipped

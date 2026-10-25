@@ -798,12 +798,21 @@ function buildStorage(p) {
       cuts2.push(slab(k, -iW / 2 - d.gd, iW / 2 + d.gd, -D / 2 - 1, -iD / 2 + 0.01, d.gz0, H + 1));
     }
     // Hinged lid: knuckles at both ends of the back edge, pin hole for a piece of 1.75 mm filament
-    if (!g && p.lid === 'hinge') {
+    if (!g && (p.lid === 'hinge' || p.lid === 'snaphinge')) {
       const hk = hingeLayout(d, p);
       for (const [x0, x1] of [hk.segs[0], hk.segs[2]]) {
         adds.push(k(MF.hull([cylX(k, x0, x1, hk.y, hk.z, hk.kr), slab(k, x0, x1, D / 2 - 0.02, D / 2, hk.z - 2 * hk.kr - 2, hk.z)])));
       }
-      cuts2.push(cylX(k, -W / 2 - 1, W / 2 + 1, hk.y, hk.z, hk.pin));
+      if (p.lid === 'hinge') cuts2.push(cylX(k, -W / 2 - 1, W / 2 + 1, hk.y, hk.z, hk.pin));
+      else {
+        // Open sockets on the faces that look at the lid's knuckle; the pegs press in from above and click.
+        const sd = snapSock(hk), pr = SNAP_PEG, sr = pr + p.tol * 0.5;
+        for (const [xi, dir] of [[hk.segs[0][1], 1], [hk.segs[2][0], -1]]) {
+          const xa = Math.min(xi, xi - dir * sd), xb = Math.max(xi, xi - dir * sd);
+          cuts2.push(cylX(k, xa - (dir < 0 ? 0.01 : 0), xb + (dir > 0 ? 0.01 : 0), hk.y, hk.z, sr));
+          cuts2.push(slab(k, xa - (dir < 0 ? 0.01 : 0), xb + (dir > 0 ? 0.01 : 0), hk.y - pr * 0.8, hk.y + pr * 0.8, hk.z, hk.z + hk.kr + 1));
+        }
+      }
     }
 
     let body = k(unionAll(k, solids).subtract(unionAll(k, cuts)));
@@ -812,6 +821,8 @@ function buildStorage(p) {
     return manifoldToGeom(body);
   });
 }
+const SNAP_PEG = 1.7;
+const snapSock = (hk) => Math.min(2.4, (hk.segs[0][1] - hk.segs[0][0]) - 1.2);
 function hingeLayout(d, p) {
   const kr = 3.5, gap = p.tol + 0.3;
   const x0 = -d.W / 2 + d.R + 1, x1 = d.W / 2 - d.R - 1, seg = (x1 - x0 - 2 * gap) / 3;
@@ -832,14 +843,22 @@ function buildLid(p) {
       const plate = rrPrism(k, lw, back + D / 2, 0.6, 0, t, 0, (back - D / 2) / 2);
       const grip = slab(k, -10, 10, -D / 2 + 1.5, -D / 2 + 3.5, t - 0.01, t + 1);
       lid = k(MF.union([plate, grip]));
-    } else if (p.lid === 'hinge') {
+    } else if (p.lid === 'hinge' || p.lid === 'snaphinge') {
       // Built where it sits on the box (top of box at z = H), then flipped to print plate-down.
       const hk = hingeLayout(d, p);
       const plate = rrPrism(k, W, D, R, d.H, d.H + t);
       const [x0, x1] = hk.segs[1];
       const knuckle = k(MF.hull([cylX(k, x0, x1, hk.y, hk.z, hk.kr), slab(k, x0, x1, D / 2 - 0.02, D / 2, d.H, d.H + t)]));
       const tab = slab(k, -8, 8, -D / 2 - 4, -D / 2 + 1, d.H, d.H + t);
-      lid = k(k(MF.union([plate, knuckle, tab])).subtract(cylX(k, -W / 2 - 1, W / 2 + 1, hk.y, hk.z, hk.pin)));
+      if (p.lid === 'hinge') lid = k(k(MF.union([plate, knuckle, tab])).subtract(cylX(k, -W / 2 - 1, W / 2 + 1, hk.y, hk.z, hk.pin)));
+      else {
+        const pr = SNAP_PEG, pl = (hk.segs[1][0] - hk.segs[0][1]) + snapSock(hk) - 0.3, pegs = [];
+        for (const [xe, dir] of [[x0, -1], [x1, 1]]) {
+          const xt = xe + dir * pl, ch = 0.6;
+          pegs.push(k(MF.hull([cylX(k, Math.min(xe - dir, xt - dir * ch), Math.max(xe - dir, xt - dir * ch), hk.y, hk.z, pr), cylX(k, Math.min(xt, xt - dir * ch), Math.max(xt, xt - dir * ch), hk.y, hk.z, pr - 0.6)])));
+        }
+        lid = k(MF.union([plate, knuckle, tab, ...pegs]));
+      }
       lid = k(k(lid.rotate([180, 0, 0])).translate([0, 0, d.H + t]));
     } else {
       // Friction fit: a plate with a lip that pushes into the box opening.
@@ -1027,19 +1046,30 @@ function buildHinge(p) {
     const l = clamp(p.leaf, 6, 200), kd = clamp(p.kd, t + 1.2, 30), d = clamp(p.screwD, 0, 8);
     let A, B, r;
     if (p.kind === 'snap') {
-      // Leaf A: two end arms holding a pin. Leaf B (printed beside it): a C-clip that snaps over the pin.
+      // Peg-and-socket: leaf A has a centre knuckle with a peg out of each end, leaf B has two end knuckles
+      // with open sockets. Press A's pegs down into B's sockets and they click in. Printed apart, flat.
       r = kd / 2;
-      const zc = r - Math.min(0.6, r * 0.15), pr = clamp(p.pinD / 2, 1, r - 1.2), arm = clamp(p.armW, 3, w / 3);
-      const leafA = rrPrism(k, w, l - r, 1.5, 0, t, 0, -(l + r) / 2);
-      const arms = [[-w / 2, -w / 2 + arm], [w / 2 - arm, w / 2]].map(([x0, x1]) => k(MF.hull([cylX(k, x0, x1, 0, zc, r), slab(k, x0, x1, -r - 1, 0, 0, t)])));
-      A = k(MF.union([leafA, ...arms, cylX(k, -w / 2 + arm - 0.5, w / 2 - arm + 0.5, 0, zc, pr)]));
-      const yB = l + 8 + r, cw = w - 2 * arm - 2 * tol;
-      const leafB = rrPrism(k, cw, l - r, 1.5, 0, t, 0, yB + (l + r) / 2);
-      const clip = k(MF.hull([cylX(k, -cw / 2, cw / 2, yB, zc, r), slab(k, -cw / 2, cw / 2, yB, yB + r + 1, 0, t)]));
-      B = k(k(MF.union([leafB, clip])).subtract(cylX(k, -w, w, yB, zc, pr + tol)));
-      B = k(B.subtract(slab(k, -w, w, yB - pr * 0.8, yB + pr * 0.8, zc, zc + r + 2)));
-      const xsB = spread(Math.min(p.screws, 3), cw, 7);
-      if (d > 0) B = k(B.subtract(unionAll(k, screwCuts(k, xsB, yB + (l + r) / 2, t, d, p.sink))));
+      const zc = r - Math.min(0.6, r * 0.15), pr = clamp(p.pinD / 2, 1, r - 1.2), g = tol + 0.3, seg = (w - 2 * g) / 3, sd = Math.min(2.4, seg - 1.2);
+      const sx = [-w / 2 + seg + g, -w / 2 + 2 * seg + g];
+      A = k(MF.union([rrPrism(k, w, l - r, 1.5, 0, t, 0, -(l + r) / 2 - 0.5),
+        k(MF.hull([cylX(k, sx[0], sx[1], 0, zc, r), slab(k, sx[0], sx[1], -r - 1, 0, 0, t)])),
+        ...[[sx[0], -1], [sx[1], 1]].map(([x, dir]) => {
+          const pl = g + sd - 0.3, x1 = x + dir * pl;
+          return k(MF.hull([cylX(k, Math.min(x - dir, x1 - dir * 0.6), Math.max(x - dir, x1 - dir * 0.6), 0, zc, pr), cylX(k, Math.min(x1, x1 - dir * 0.6), Math.max(x1, x1 - dir * 0.6), 0, zc, pr - 0.6)]));
+        })]));
+      const shift = 2 * r + 8, ends = [[-w / 2, -w / 2 + seg, 1], [w / 2 - seg, w / 2, -1]];
+      const bn = [rrPrism(k, w, l - r, 1.5, 0, t, 0, (l + r) / 2 + 0.5)];
+      for (const [x0, x1] of ends) bn.push(k(MF.hull([cylX(k, x0, x1, 0, zc, r), slab(k, x0, x1, 0, r + 1, 0, t)])));
+      B = k(MF.union(bn));
+      const cuts = [];
+      for (const [x0, x1, dir] of ends) {
+        const xi = dir > 0 ? x1 : x0, xo = xi - dir * sd;
+        cuts.push(cylX(k, Math.min(xi, xo) - (dir > 0 ? 0 : 0), Math.max(xi, xo) + (dir > 0 ? 0.01 : 0), 0, zc, pr + tol / 2));
+        cuts.push(slab(k, Math.min(xi, xo), Math.max(xi, xo) + 0.01 * dir * -1 + (dir > 0 ? 0.01 : 0), -pr * 0.8, pr * 0.8, zc, zc + r + 1));
+      }
+      B = k(B.subtract(unionAll(k, cuts)));
+      B = k(B.translate([0, shift, 0]));
+      if (d > 0) B = k(B.subtract(unionAll(k, screwCuts(k, spread(p.screws, w, 7), shift + (l + r) / 2 + 0.5, t, d, p.sink))));
     } else {
       const kh = knuckleHinge(k, { w, la: l, lb: l, t, tol, kd, n: p.n, pinD: p.pinD, pin: p.kind === 'pin' ? 'hole' : 'printed' });
       A = kh.A; B = kh.B; r = kh.r;
@@ -1133,7 +1163,7 @@ function buildLatch(p) {
 const HINGE_DEFAULTS = {
   pip: { kind: 'pip', w: 40, leaf: 18, t: 2.4, kd: 7, n: 5, pinD: 3, tol: 0.4, screws: 2, screwD: 3.5, sink: true },
   pin: { kind: 'pin', w: 40, leaf: 18, t: 2.4, kd: 7, n: 5, pinD: 1.75, tol: 0.25, screws: 2, screwD: 3.5, sink: true },
-  snap: { kind: 'snap', w: 40, leaf: 18, t: 2.4, kd: 8, pinD: 4, armW: 7, tol: 0.3, screws: 2, screwD: 3.5, sink: true },
+  snap: { kind: 'snap', w: 40, leaf: 18, t: 2.4, kd: 8, pinD: 3.2, tol: 0.3, screws: 2, screwD: 3.5, sink: true },
   living: { kind: 'living', w: 40, leaf: 20, t: 2, ht: 0.5, hl: 3 },
 };
 const LATCH_DEFAULTS = {
@@ -1153,7 +1183,7 @@ const HW_DEFAULTS = { hinge: HINGE_DEFAULTS, latch: LATCH_DEFAULTS };
 const HW_NOTES = {
   'hinge.pip': 'Prints in one piece, already joined, and swings straight off the plate. If it is stuck, twist it firmly once to break it free. Stuck every time? Make the fit gap bigger.',
   'hinge.pin': 'Prints as two leaves with a hole through the knuckles. Push a piece of 1.75 mm filament (or a nail) through as the pin. Strongest of the three, and you can take it apart.',
-  'hinge.snap': 'Prints as two pieces. Press the clip onto the pin until it clicks. Handy when you want to pull a lid off and put it back.',
+  'hinge.snap': 'Two flat pieces. One has a knuckle with a peg out of each end, the other has two open sockets. Press the pegs down into the sockets until they click. Pull them out again any time. A tighter fit gap clicks harder.',
   'hinge.living': 'A thin strip that bends. Print it flat in PETG or PP for thousands of bends; PLA cracks after a few. Thinner strip = easier to bend.',
   'latch.snap': 'A springy hook and a catch, printed side by side. Fix the hook to the lid and the catch to the box so the hook slides along the catch and clicks in behind its tooth.',
   'latch.bolt': 'The bolt prints already inside its housing. Slide it by the knob. Screw the housing to the door and the keeper to the frame, in line with the bolt.',
@@ -1170,9 +1200,9 @@ function hwForm(o) {
     if (p.kind === 'living') return [kind, { title: 'Size', fields: [F('w', 'Width', 'mm', 10, 300, 1), F('leaf', 'Each side', 'mm', 5, 200, 1), F('t', 'Thickness', 'mm', 1, 8, 0.1)] },
       { title: 'Bendy strip', fields: [F('ht', 'Strip thickness', 'mm', 0.3, 1.5, 0.05), F('hl', 'Strip length', 'mm', 1, 10, 0.5)], note: 'About 2 to 3 layers thick works best (0.4 to 0.6 mm).' }];
     return [kind, { title: 'Size', fields: [F('w', 'Width', 'mm', 10, 300, 1), F('leaf', 'Each leaf', 'mm', 6, 200, 1), F('t', 'Thickness', 'mm', 1, 8, 0.1)] },
-      { title: 'Knuckles', fields: [F('kd', 'Knuckle size', 'mm', 3, 30, 0.5), ...(p.kind === 'snap' ? [F('armW', 'Arm width', 'mm', 3, 40, 0.5)] : [F('n', 'Knuckles', '', 3, 15, 2)]),
-        F('pinD', p.kind === 'pin' ? 'Pin you will use' : 'Pin size', 'mm', 1, 10, 0.05), fit],
-        note: p.kind === 'pip' ? 'The fit gap is the space around the pin. 0.4 mm suits most printers.' : p.kind === 'pin' ? '1.75 mm filament is the usual pin. The hole is made this size plus the fit gap.' : 'A tighter fit gap clicks harder.' },
+      { title: 'Knuckles', fields: [F('kd', 'Knuckle size', 'mm', 3, 30, 0.5), ...(p.kind === 'snap' ? [] : [F('n', 'Knuckles', '', 3, 15, 2)]),
+        F('pinD', p.kind === 'pin' ? 'Pin you will use' : p.kind === 'snap' ? 'Peg size' : 'Pin size', 'mm', 1, 10, 0.05), fit],
+        note: p.kind === 'pip' ? 'The fit gap is the space around the pin. 0.4 mm suits most printers.' : p.kind === 'pin' ? '1.75 mm filament is the usual pin. The hole is made this size plus the fit gap.' : 'The pegs are a little bigger than the socket opening, so they squeeze in and click.' },
       screws(true)];
   }
   if (p.kind === 'snap') return [kind, { title: 'Size', fields: [F('w', 'Width', 'mm', 4, 60, 0.5), F('L', 'Arm length', 'mm', 8, 80, 1), F('at', 'Arm thickness', 'mm', 0.8, 5, 0.1), F('bd', 'Hook depth', 'mm', 0.4, 4, 0.1), fit],
@@ -1881,6 +1911,7 @@ const LID_NOTES = {
   friction: 'A lip under the lid pushes into the opening. Too tight? Make the fit gap bigger. Too loose? Make it smaller.',
   slide: 'The lid slides in from the front along grooves in the walls. Walls of 1.6 mm or more work best.',
   hinge: 'Push a piece of 1.75 mm filament through the knuckles at the back to make the hinge pin.',
+  snaphinge: 'No pin needed. The lid has a peg out of each side of its hinge knuckle; hold the lid upright behind the box and press the pegs down into the open sockets until they click. Too tight or too loose? Change the fit gap.',
 };
 function makerForm(o) {
   const p = o.p;
@@ -1898,7 +1929,7 @@ function makerForm(o) {
     { title: 'Easy to grab', checks: [['scoop', 'Finger scoop at the front of each row'], ['notch', 'Finger notch in the front wall'], ['handles', 'Handle slots in the sides']], fields: p.scoop ? [['scoopR', 'Scoop size', 'mm', 3, 40, 1]] : [] },
     { title: 'Label', select: ['label', [['none', 'No label'], ['shelf', 'Label shelf inside each row'], ['raised', 'Raised text on the front'], ['engraved', 'Engraved text on the front']]], text: p.label === 'raised' || p.label === 'engraved' ? ['labelText', 'Text'] : null,
       note: p.label === 'shelf' ? 'A sloped ledge at the back of each row, sized for a small sticker or written label.' : '' },
-    !g && { title: 'Lid', select: ['lid', [['none', 'No lid'], ['friction', 'Push-on lid'], ['slide', 'Slide-on lid'], ['hinge', 'Hinged lid']]], fields: p.lid !== 'none' ? [['lidT', 'Lid thickness', 'mm', 1, 5, 0.1], ['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: LID_NOTES[p.lid] },
+    !g && { title: 'Lid', select: ['lid', [['none', 'No lid'], ['friction', 'Push-on lid'], ['slide', 'Slide-on lid'], ['hinge', 'Hinged lid (filament pin)'], ['snaphinge', 'Snap-on hinged lid']]], fields: p.lid !== 'none' ? [['lidT', 'Lid thickness', 'mm', 1, 5, 0.1], ['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: LID_NOTES[p.lid] },
     g ? { title: 'Stacking', checks: [['lip', 'Stacking lip so another bin sits on top'], ['magnets', 'Magnet holes under the feet (6 × 2 mm)']] }
       : { title: 'Stacking', checks: [['stack', 'Stacking foot that drops into the box below']], fields: p.stack && p.lid === 'none' ? [['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: p.stack ? 'The bottom 3 mm steps in so it sits inside the top of an identical box.' : '' },
   ].filter(Boolean);
@@ -3104,6 +3135,7 @@ const KW = [
   ['snap on|snap|clip on|removable|detachable', 'k:snap'],
   ['living|flexible|flex|bendy', 'k:living'],
   // lids and box features
+  ['snap hinged lid|snap hinge lid|snap on hinged lid|snap fit hinged lid|snap fit hinge lid|snap fit lid|snap on lid hinge|snap lid hinge', 'lid:snaphinge'],
   ['hinged lid|hinge lid|lid with hinge|lid with a hinge|flip lid|flip top', 'lid:hinge'],
   ['sliding lid|slide lid|slide on lid|slide-on lid|sliding top', 'lid:slide'],
   ['push on lid|push lid|press fit lid|friction lid|snap lid|lid|lids|cover', 'lid:friction'],
@@ -3292,7 +3324,7 @@ function planPrompt(src) {
       else if (P.flag('f:rounded')) { p.radius = 8; said.push('Extra-rounded corners'); }
       else if (P.flag('f:sharp')) { p.radius = 0; p.soften = 0; said.push('Sharp corners'); }
       const lt = P.tags.find((t) => t.tag.startsWith('lid:')) || (objs.some((t) => t.tag.startsWith('obj:hinge')) ? { tag: 'lid:hinge' } : null);
-      if (lt && !lt.neg) { p.lid = lt.tag.slice(4); said.push({ hinge: 'Hinged lid', slide: 'Slide-on lid', friction: 'Push-on lid' }[p.lid]); }
+      if (lt && !lt.neg) { p.lid = lt.tag.slice(4); said.push({ hinge: 'Hinged lid', snaphinge: 'Snap-on hinged lid', slide: 'Slide-on lid', friction: 'Push-on lid' }[p.lid]); }
       if (P.flag('f:stack') != null) { p.stack = P.flag('f:stack'); if (p.stack) said.push('Stacking foot'); }
     } else {
       if (P.flag('f:lip') === false) { p.lip = false; said.push('No stacking lip'); }
@@ -3487,7 +3519,7 @@ const ASK_WORDS = [
   ['cube', 'shape'], ['cylinder', 'shape'], ['sphere', 'shape'], ['cone', 'shape'], ['pyramid', 'shape'], ['tube', 'shape'], ['ring', 'shape'], ['star', 'shape'], ['heart', 'shape'], ['hexagon', 'shape'], ['wedge', 'shape'],
   ['cup', 'spun shape'], ['bowl', 'spun shape'], ['vase', 'spun shape'], ['knob', 'spun shape'],
   ['compartments', 'e.g. 3 x 2 compartments'], ['dividers', 'e.g. 2 dividers'], ['walls', 'e.g. 2 mm walls'], ['floor', 'e.g. floor 1.5 mm'], ['corners', 'e.g. corners 5 mm'],
-  ['hinged lid', 'lid on a hinge'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
+  ['hinged lid', 'lid on a hinge'], ['snap hinged lid', 'pegs click in'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
   ['label shelf', 'spot for a label'], ['label', 'add text after it'], ['stackable', 'stacking foot'], ['magnets', 'Gridfinity magnet holes'], ['engraved', 'text cut in'], ['raised', 'text sticks out'],
   ['text', 'then your words'], ['hole', 'e.g. 4 mm hole'], ['screw holes', 'mounting holes'], ['no screw holes', 'glue instead'], ['knuckles', 'e.g. 5 knuckles'],
   ['wide', 'e.g. 50 mm wide'], ['tall', 'e.g. 40 mm tall'], ['deep', 'e.g. 30 mm deep'], ['thick', 'e.g. 3 mm thick'], ['diameter', 'e.g. diameter 60 mm'], ['mm', 'millimetres'], ['cm', 'centimetres'], ['inch', '25.4 mm'],

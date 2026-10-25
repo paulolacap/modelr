@@ -859,6 +859,7 @@ const LID_NOTES = {
   friction: 'A lip under the lid pushes into the opening. Too tight? Make the fit gap bigger. Too loose? Make it smaller.',
   slide: 'The lid slides in from the front along grooves in the walls. Walls of 1.6 mm or more work best.',
   hinge: 'Push a piece of 1.75 mm filament through the knuckles at the back to make the hinge pin.',
+  snaphinge: 'No pin needed. The lid has a peg out of each side of its hinge knuckle; hold the lid upright behind the box and press the pegs down into the open sockets until they click. Too tight or too loose? Change the fit gap.',
 };
 function makerForm(o) {
   const p = o.p;
@@ -876,7 +877,7 @@ function makerForm(o) {
     { title: 'Easy to grab', checks: [['scoop', 'Finger scoop at the front of each row'], ['notch', 'Finger notch in the front wall'], ['handles', 'Handle slots in the sides']], fields: p.scoop ? [['scoopR', 'Scoop size', 'mm', 3, 40, 1]] : [] },
     { title: 'Label', select: ['label', [['none', 'No label'], ['shelf', 'Label shelf inside each row'], ['raised', 'Raised text on the front'], ['engraved', 'Engraved text on the front']]], text: p.label === 'raised' || p.label === 'engraved' ? ['labelText', 'Text'] : null,
       note: p.label === 'shelf' ? 'A sloped ledge at the back of each row, sized for a small sticker or written label.' : '' },
-    !g && { title: 'Lid', select: ['lid', [['none', 'No lid'], ['friction', 'Push-on lid'], ['slide', 'Slide-on lid'], ['hinge', 'Hinged lid']]], fields: p.lid !== 'none' ? [['lidT', 'Lid thickness', 'mm', 1, 5, 0.1], ['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: LID_NOTES[p.lid] },
+    !g && { title: 'Lid', select: ['lid', [['none', 'No lid'], ['friction', 'Push-on lid'], ['slide', 'Slide-on lid'], ['hinge', 'Hinged lid (filament pin)'], ['snaphinge', 'Snap-on hinged lid']]], fields: p.lid !== 'none' ? [['lidT', 'Lid thickness', 'mm', 1, 5, 0.1], ['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: LID_NOTES[p.lid] },
     g ? { title: 'Stacking', checks: [['lip', 'Stacking lip so another bin sits on top'], ['magnets', 'Magnet holes under the feet (6 × 2 mm)']] }
       : { title: 'Stacking', checks: [['stack', 'Stacking foot that drops into the box below']], fields: p.stack && p.lid === 'none' ? [['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: p.stack ? 'The bottom 3 mm steps in so it sits inside the top of an identical box.' : '' },
   ].filter(Boolean);
