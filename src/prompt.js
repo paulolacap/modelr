@@ -60,6 +60,7 @@ const KW = [
   ['sliding lid|slide lid|slide on lid|slide-on lid|sliding top', 'lid:slide'],
   ['push on lid|push lid|press fit lid|friction lid|snap lid|lid|lids|cover', 'lid:friction'],
   ['padlock tab|padlock hole|padlock loop|zip tie tab', 'f:padtab'],
+  ['inner clasp|inner snap clasp|inner box snap clasp|hidden clasp|hidden snap clasp|hidden lock|inside clasp|internal clasp|invisible clasp|hidden latch|inner latch|inner lock', 'f:hclasp'],
   ['front clasp|snap clasp|clasp|clasps|lockable', 'f:clasp'],
   ['finger scoop|finger scoops|scoop|scoops|scooped', 'f:scoop'],
   ['finger notch|notch', 'f:notch'],
@@ -247,10 +248,10 @@ function planPrompt(src) {
       else if (P.flag('f:sharp')) { p.radius = 0; p.soften = 0; said.push('Sharp corners'); }
       const lt = P.tags.find((t) => t.tag.startsWith('lid:')) || (objs.some((t) => t.tag.startsWith('obj:hinge')) ? { tag: 'lid:hinge' } : null);
       if (lt && !lt.neg) { p.lid = lt.tag.slice(4); said.push({ hinge: 'Hinged lid', inner: 'Inner hinged lid (hidden hinge)', snaphinge: 'Snap-on hinged lid', slide: 'Slide-on lid', friction: 'Push-on lid' }[p.lid]); }
-      const wantLock = P.flag('f:clasp') ? 'clasp' : P.flag('f:padtab') ? 'padlock' : null;
+      const wantLock = P.flag('f:hclasp') ? 'hidden' : P.flag('f:clasp') ? 'clasp' : P.flag('f:padtab') ? 'padlock' : null;
       if (wantLock) {
-        if (!['hinge', 'snaphinge', 'inner'].includes(p.lid)) { p.lid = 'inner'; said.push('Inner hinged lid (hidden hinge)'); }
-        p.lock = wantLock; said.push(wantLock === 'clasp' ? 'Snap clasp on the front' : 'Padlock tab');
+        if (wantLock === 'hidden' ? p.lid !== 'inner' : !['hinge', 'snaphinge', 'inner'].includes(p.lid)) { p.lid = 'inner'; said.push('Inner hinged lid (hidden hinge)'); }
+        p.lock = wantLock; said.push(wantLock === 'clasp' ? 'Snap clasp on the front' : wantLock === 'hidden' ? 'Hidden snap clasp inside the box' : 'Padlock tab');
       }
       if (P.flag('f:stack') != null) { p.stack = P.flag('f:stack'); if (p.stack) said.push('Stacking foot'); }
     } else {
@@ -458,7 +459,7 @@ const ASK_WORDS = [
   ['cube', 'shape'], ['cylinder', 'shape'], ['sphere', 'shape'], ['cone', 'shape'], ['pyramid', 'shape'], ['tube', 'shape'], ['ring', 'shape'], ['star', 'shape'], ['heart', 'shape'], ['hexagon', 'shape'], ['wedge', 'shape'],
   ['cup', 'spun shape'], ['bowl', 'spun shape'], ['vase', 'spun shape'], ['knob', 'spun shape'],
   ['compartments', 'e.g. 3 x 2 compartments'], ['dividers', 'e.g. 2 dividers'], ['walls', 'e.g. 2 mm walls'], ['floor', 'e.g. floor 1.5 mm'], ['corners', 'e.g. corners 5 mm'],
-  ['hinged lid', 'lid on a hinge'], ['inner hinged lid', 'hidden hinge'], ['clasp', 'front snap lock'], ['padlock tab', 'hole for a lock'], ['snap hinged lid', 'pegs click in'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
+  ['hinged lid', 'lid on a hinge'], ['inner hinged lid', 'hidden hinge'], ['clasp', 'front snap lock'], ['inner clasp', 'hidden snap lock'], ['padlock tab', 'hole for a lock'], ['snap hinged lid', 'pegs click in'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
   ['label shelf', 'spot for a label'], ['label', 'add text after it'], ['stackable', 'stacking foot'], ['magnets', 'Gridfinity magnet holes'], ['engraved', 'text cut in'], ['raised', 'text sticks out'],
   ['text', 'then your words'], ['hole', 'e.g. 4 mm hole'], ['screw holes', 'mounting holes'], ['no screw holes', 'glue instead'], ['knuckles', 'e.g. 5 knuckles'],
   ['wide', 'e.g. 50 mm wide'], ['tall', 'e.g. 40 mm tall'], ['deep', 'e.g. 30 mm deep'], ['thick', 'e.g. 3 mm thick'], ['diameter', 'e.g. diameter 60 mm'], ['mm', 'millimetres'], ['cm', 'centimetres'], ['inch', '25.4 mm'],

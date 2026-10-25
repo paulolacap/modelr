@@ -241,6 +241,16 @@ function lockParts(k, d, p) {
     out.lidAdd.push(slab(k, -cw / 2, cw / 2, yo, yf + 0.01, H, H + t));
     out.lidAdd.push(prismX(k, [[yo + at - 0.01, zt], [yf - 0.25, zt], [yo + at - 0.01, zt - 3]], -cw / 2, cw));
     out.lidAdd.push(slab(k, -cw / 2, cw / 2, yo - 3, yo + 0.01, H - 12.5, H - 12.5 + 1.2)); // little thumb lip
+  } else if (p.lock === 'hidden' && p.lid === 'inner' && H >= 16) {
+    // Everything inside the box: a bump on the inside of the front wall, a springy hook hanging from the lid that clicks under it.
+    const yw = yf + d.wall, bd = 0.9, zb = H - 6, at = 1.4, y0 = yw + bd + g, yb = yw + bd - 0.7, zbot = zb - 3.2;
+    const cols = Math.max(1, Math.round(p.cols || 1)), divT = p.divT ?? 1.2, cw0 = (d.iW - (cols - 1) * divT) / cols;
+    const cx = -d.iW / 2 + cw0 / 2 + Math.floor(cols / 2) * (cw0 + divT), aw = clamp(Math.min(cw0 - 3, 12), 4, 14);
+    const zt = zb + (yb - (yw - 0.3)) - 0.2;
+    out.boxAdd.push(prismX(k, [[yw - 0.3, zb], [yw + bd, zb + bd], [yw + bd, zb + bd + 1], [yw, zb + bd + 3.2], [yw - 0.3, zb + bd + 3.2]], cx - aw / 2 - 1, aw + 2));
+    out.lidAdd.push(slab(k, cx - aw / 2, cx + aw / 2, y0, y0 + at, zbot, H + 0.01));
+    out.lidAdd.push(prismX(k, [[y0 + 0.01, zbot], [yb, zbot + 1.2], [yb, zt], [y0 + 0.01, zt + (y0 + 0.01 - yb)]], cx - aw / 2, aw));
+    out.boxCut.push(cylZ(k, cx, yf - 0.5, H - 3, H + 0.01, 4)); // fingernail scoop under the lid's front edge
   } else if (p.lock === 'padlock') {
     const tw = 7, hd = 2.4;
     out.boxAdd.push(slab(k, -tw, tw, yf - 12, yf + 0.5, H - 3, H - 0.25));
@@ -250,7 +260,7 @@ function lockParts(k, d, p) {
   }
   return out;
 }
-const LOCK_CHOICES = [['none', 'No lock'], ['clasp', 'Snap clasp on the front'], ['padlock', 'Padlock tab (hole for a padlock or zip tie)']];
+const LOCK_CHOICES = [['none', 'No lock'], ['clasp', 'Snap clasp on the front'], ['hidden', 'Hidden snap clasp (inner lid only)'], ['padlock', 'Padlock tab (hole for a padlock or zip tie)']];
 function hingeLayout(d, p) {
   const kr = 3.5, gap = p.tol + 0.3;
   const x0 = -d.W / 2 + d.R + 1, x1 = d.W / 2 - d.R - 1, seg = (x1 - x0 - 2 * gap) / 3;

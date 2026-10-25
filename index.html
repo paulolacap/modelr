@@ -854,6 +854,16 @@ function lockParts(k, d, p) {
     out.lidAdd.push(slab(k, -cw / 2, cw / 2, yo, yf + 0.01, H, H + t));
     out.lidAdd.push(prismX(k, [[yo + at - 0.01, zt], [yf - 0.25, zt], [yo + at - 0.01, zt - 3]], -cw / 2, cw));
     out.lidAdd.push(slab(k, -cw / 2, cw / 2, yo - 3, yo + 0.01, H - 12.5, H - 12.5 + 1.2)); // little thumb lip
+  } else if (p.lock === 'hidden' && p.lid === 'inner' && H >= 16) {
+    // Everything inside the box: a bump on the inside of the front wall, a springy hook hanging from the lid that clicks under it.
+    const yw = yf + d.wall, bd = 0.9, zb = H - 6, at = 1.4, y0 = yw + bd + g, yb = yw + bd - 0.7, zbot = zb - 3.2;
+    const cols = Math.max(1, Math.round(p.cols || 1)), divT = p.divT ?? 1.2, cw0 = (d.iW - (cols - 1) * divT) / cols;
+    const cx = -d.iW / 2 + cw0 / 2 + Math.floor(cols / 2) * (cw0 + divT), aw = clamp(Math.min(cw0 - 3, 12), 4, 14);
+    const zt = zb + (yb - (yw - 0.3)) - 0.2;
+    out.boxAdd.push(prismX(k, [[yw - 0.3, zb], [yw + bd, zb + bd], [yw + bd, zb + bd + 1], [yw, zb + bd + 3.2], [yw - 0.3, zb + bd + 3.2]], cx - aw / 2 - 1, aw + 2));
+    out.lidAdd.push(slab(k, cx - aw / 2, cx + aw / 2, y0, y0 + at, zbot, H + 0.01));
+    out.lidAdd.push(prismX(k, [[y0 + 0.01, zbot], [yb, zbot + 1.2], [yb, zt], [y0 + 0.01, zt + (y0 + 0.01 - yb)]], cx - aw / 2, aw));
+    out.boxCut.push(cylZ(k, cx, yf - 0.5, H - 3, H + 0.01, 4)); // fingernail scoop under the lid's front edge
   } else if (p.lock === 'padlock') {
     const tw = 7, hd = 2.4;
     out.boxAdd.push(slab(k, -tw, tw, yf - 12, yf + 0.5, H - 3, H - 0.25));
@@ -863,7 +873,7 @@ function lockParts(k, d, p) {
   }
   return out;
 }
-const LOCK_CHOICES = [['none', 'No lock'], ['clasp', 'Snap clasp on the front'], ['padlock', 'Padlock tab (hole for a padlock or zip tie)']];
+const LOCK_CHOICES = [['none', 'No lock'], ['clasp', 'Snap clasp on the front'], ['hidden', 'Hidden snap clasp (inner lid only)'], ['padlock', 'Padlock tab (hole for a padlock or zip tie)']];
 function hingeLayout(d, p) {
   const kr = 3.5, gap = p.tol + 0.3;
   const x0 = -d.W / 2 + d.R + 1, x1 = d.W / 2 - d.R - 1, seg = (x1 - x0 - 2 * gap) / 3;
@@ -2119,7 +2129,7 @@ function makerForm(o) {
     { title: 'Label', select: ['label', [['none', 'No label'], ['shelf', 'Label shelf inside each row'], ['raised', 'Raised text on the front'], ['engraved', 'Engraved text on the front']]], text: p.label === 'raised' || p.label === 'engraved' ? ['labelText', 'Text'] : null,
       note: p.label === 'shelf' ? 'A sloped ledge at the back of each row, sized for a small sticker or written label.' : '' },
     !g && { title: 'Lid', select: ['lid', [['none', 'No lid'], ['friction', 'Push-on lid'], ['slide', 'Slide-on lid'], ['hinge', 'Hinged lid (filament pin)'], ['snaphinge', 'Snap-on hinged lid'], ['inner', 'Inner hinged lid (hidden hinge)']]], fields: p.lid !== 'none' ? [['lidT', 'Lid thickness', 'mm', 1, 5, 0.1], ['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: LID_NOTES[p.lid] },
-    !g && ['hinge', 'snaphinge', 'inner'].includes(p.lid) && { title: 'Lock', select: ['lock', LOCK_CHOICES], note: p.lock === 'clasp' ? 'A springy hook on the lid clicks under a ledge on the front of the box. Pull the little lip at the bottom of the hook to open it.' : p.lock === 'padlock' ? 'The lid and the box each get a tab with a hole. Slide a small padlock, a zip tie or a cable tie through both holes. The tab sticks out 12 mm at the front.' : 'Add a lock to keep the lid shut.' },
+    !g && ['hinge', 'snaphinge', 'inner'].includes(p.lid) && { title: 'Lock', select: ['lock', LOCK_CHOICES], note: p.lock === 'hidden' ? (p.lid === 'inner' ? 'A springy hook under the lid clicks onto a bump inside the front wall, so the outside stays perfectly smooth. Slide a fingernail into the little scoop at the front edge and lift to open.' : 'The hidden clasp only works with the inner hinged lid. Pick that lid above.') : p.lock === 'clasp' ? 'A springy hook on the lid clicks under a ledge on the front of the box. Pull the little lip at the bottom of the hook to open it.' : p.lock === 'padlock' ? 'The lid and the box each get a tab with a hole. Slide a small padlock, a zip tie or a cable tie through both holes. The tab sticks out 12 mm at the front.' : 'Add a lock to keep the lid shut.' },
     g ? { title: 'Stacking', checks: [['lip', 'Stacking lip so another bin sits on top'], ['magnets', 'Magnet holes under the feet (6 × 2 mm)']] }
       : { title: 'Stacking', checks: [['stack', 'Stacking foot that drops into the box below']], fields: p.stack && p.lid === 'none' ? [['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: p.stack ? 'The bottom 3 mm steps in so it sits inside the top of an identical box.' : '' },
   ].filter(Boolean);
@@ -3340,6 +3350,7 @@ const KW = [
   ['sliding lid|slide lid|slide on lid|slide-on lid|sliding top', 'lid:slide'],
   ['push on lid|push lid|press fit lid|friction lid|snap lid|lid|lids|cover', 'lid:friction'],
   ['padlock tab|padlock hole|padlock loop|zip tie tab', 'f:padtab'],
+  ['inner clasp|inner snap clasp|inner box snap clasp|hidden clasp|hidden snap clasp|hidden lock|inside clasp|internal clasp|invisible clasp|hidden latch|inner latch|inner lock', 'f:hclasp'],
   ['front clasp|snap clasp|clasp|clasps|lockable', 'f:clasp'],
   ['finger scoop|finger scoops|scoop|scoops|scooped', 'f:scoop'],
   ['finger notch|notch', 'f:notch'],
@@ -3527,10 +3538,10 @@ function planPrompt(src) {
       else if (P.flag('f:sharp')) { p.radius = 0; p.soften = 0; said.push('Sharp corners'); }
       const lt = P.tags.find((t) => t.tag.startsWith('lid:')) || (objs.some((t) => t.tag.startsWith('obj:hinge')) ? { tag: 'lid:hinge' } : null);
       if (lt && !lt.neg) { p.lid = lt.tag.slice(4); said.push({ hinge: 'Hinged lid', inner: 'Inner hinged lid (hidden hinge)', snaphinge: 'Snap-on hinged lid', slide: 'Slide-on lid', friction: 'Push-on lid' }[p.lid]); }
-      const wantLock = P.flag('f:clasp') ? 'clasp' : P.flag('f:padtab') ? 'padlock' : null;
+      const wantLock = P.flag('f:hclasp') ? 'hidden' : P.flag('f:clasp') ? 'clasp' : P.flag('f:padtab') ? 'padlock' : null;
       if (wantLock) {
-        if (!['hinge', 'snaphinge', 'inner'].includes(p.lid)) { p.lid = 'inner'; said.push('Inner hinged lid (hidden hinge)'); }
-        p.lock = wantLock; said.push(wantLock === 'clasp' ? 'Snap clasp on the front' : 'Padlock tab');
+        if (wantLock === 'hidden' ? p.lid !== 'inner' : !['hinge', 'snaphinge', 'inner'].includes(p.lid)) { p.lid = 'inner'; said.push('Inner hinged lid (hidden hinge)'); }
+        p.lock = wantLock; said.push(wantLock === 'clasp' ? 'Snap clasp on the front' : wantLock === 'hidden' ? 'Hidden snap clasp inside the box' : 'Padlock tab');
       }
       if (P.flag('f:stack') != null) { p.stack = P.flag('f:stack'); if (p.stack) said.push('Stacking foot'); }
     } else {
@@ -3738,7 +3749,7 @@ const ASK_WORDS = [
   ['cube', 'shape'], ['cylinder', 'shape'], ['sphere', 'shape'], ['cone', 'shape'], ['pyramid', 'shape'], ['tube', 'shape'], ['ring', 'shape'], ['star', 'shape'], ['heart', 'shape'], ['hexagon', 'shape'], ['wedge', 'shape'],
   ['cup', 'spun shape'], ['bowl', 'spun shape'], ['vase', 'spun shape'], ['knob', 'spun shape'],
   ['compartments', 'e.g. 3 x 2 compartments'], ['dividers', 'e.g. 2 dividers'], ['walls', 'e.g. 2 mm walls'], ['floor', 'e.g. floor 1.5 mm'], ['corners', 'e.g. corners 5 mm'],
-  ['hinged lid', 'lid on a hinge'], ['inner hinged lid', 'hidden hinge'], ['clasp', 'front snap lock'], ['padlock tab', 'hole for a lock'], ['snap hinged lid', 'pegs click in'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
+  ['hinged lid', 'lid on a hinge'], ['inner hinged lid', 'hidden hinge'], ['clasp', 'front snap lock'], ['inner clasp', 'hidden snap lock'], ['padlock tab', 'hole for a lock'], ['snap hinged lid', 'pegs click in'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
   ['label shelf', 'spot for a label'], ['label', 'add text after it'], ['stackable', 'stacking foot'], ['magnets', 'Gridfinity magnet holes'], ['engraved', 'text cut in'], ['raised', 'text sticks out'],
   ['text', 'then your words'], ['hole', 'e.g. 4 mm hole'], ['screw holes', 'mounting holes'], ['no screw holes', 'glue instead'], ['knuckles', 'e.g. 5 knuckles'],
   ['wide', 'e.g. 50 mm wide'], ['tall', 'e.g. 40 mm tall'], ['deep', 'e.g. 30 mm deep'], ['thick', 'e.g. 3 mm thick'], ['diameter', 'e.g. diameter 60 mm'], ['mm', 'millimetres'], ['cm', 'centimetres'], ['inch', '25.4 mm'],
