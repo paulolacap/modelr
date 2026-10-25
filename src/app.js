@@ -165,6 +165,7 @@ function combine(solids, holes) {
 }
 // @@MAKERS@@
 // @@HARDWARE@@
+// @@JOINTS@@
 function groupRaw(children) {
   const solids = [], holes = [];
   for (const c of children) {
@@ -866,6 +867,7 @@ function makerForm(o) {
   if (o.type === 'gfplate') return [{ title: 'Size', note: 'Each square holds a 1 × 1 Gridfinity bin and is 42 mm across. Screw or glue it into a drawer.', fields: [['gx', 'Width', 'squares', 1, 12, 1], ['gy', 'Depth', 'squares', 1, 12, 1]] }];
   if (o.type === 'lid' || o.type === 'picture') return [];
   if (o.type === 'hinge' || o.type === 'latch') return hwForm(o);
+  if (o.type === 'joint') return jointForm(o);
   const g = p.style === 'gridfinity';
   return [
     g ? { title: 'Size', note: '1 unit is 42 mm across and 7 mm tall, so it fits any Gridfinity baseplate.', fields: [['gx', 'Width', 'units', 1, 10, 1], ['gy', 'Depth', 'units', 1, 10, 1], ['gz', 'Height', 'units', 2, 24, 1]] }
@@ -1154,7 +1156,7 @@ function thumbnails() {
   for (const m of PIC_BIN) { const g = makeUnit(m.thumb()); shot('pc' + m.key, g, g.userData.natural, false, !!g.getAttribute('color')); }
   for (const m of DRAW_BIN) { const g = unitGeom(m.spec()); shot('dr' + m.key, g, g.userData.natural); }
   for (const m of MAKER_BIN) { const sp = m.spec(); const g = unitGeom(sp); shot('mk' + m.key, g, g.userData.natural); }
-  for (const m of HW_BIN) { const g = unitGeom(m.spec()); shot('hw' + m.key, g, g.userData.natural); }
+  for (const m of [...HW_BIN, ...JOINT_BIN]) { const g = unitGeom(m.spec()); shot('hw' + m.key, g, g.userData.natural); }
   r.dispose();
   return out;
 }
@@ -1171,6 +1173,7 @@ function buildBin() {
   PIC_BIN.forEach((m) => { const b = document.createElement('button'); b.className = 'shape'; b.title = m.label; b.innerHTML = `<img alt="" src="${thumbs['pc' + m.key]}"><span>${m.label}</span>`; b.onclick = () => picOpen(m.key); $('picShapes').append(b); });
   DRAW_BIN.forEach((m) => { const b = mk(m.spec(), m.label, thumbs['dr' + m.key]); b.onclick = () => addShape(m.spec()); b.ondragstart = (e) => { e.dataTransfer.setData('text/plain', JSON.stringify(m.spec())); }; $('drawShapes').append(b); });
   MAKER_BIN.forEach((m) => { const b = mk(m.spec(), m.label, thumbs['mk' + m.key]); b.onclick = () => addShape(m.spec()); b.ondragstart = (e) => { e.dataTransfer.setData('text/plain', JSON.stringify(m.spec())); }; $('makerShapes').append(b); });
+  JOINT_BIN.forEach((m) => { const b = mk(m.spec(), m.label, thumbs['hw' + m.key]); b.onclick = () => addShape(m.spec()); b.ondragstart = (e) => { e.dataTransfer.setData('text/plain', JSON.stringify(m.spec())); }; $('jointShapes').append(b); });
   HW_BIN.forEach((m) => { const b = mk(m.spec(), m.label, thumbs['hw' + m.key]); b.onclick = () => addShape(m.spec()); b.ondragstart = (e) => { e.dataTransfer.setData('text/plain', JSON.stringify(m.spec())); }; $('hwShapes').append(b); });
   SOLID_BIN.forEach((t) => $('solidShapes').append(mk({ type: t }, SHAPES[t].label, thumbs[t])));
   HOLE_BIN.forEach((h, i) => $('holeShapes').append(mk({ type: h.type, hole: true, size: h.size }, h.label, thumbs['hole' + i])));

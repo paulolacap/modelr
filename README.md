@@ -28,12 +28,14 @@ connection the first time to load Three.js). Export STL saves a `.stl` file dire
   layer height, simulated colour preview, colour-change list, height-map PNG)
 - Hinges & locks: print-in-place, filament-pin, snap-on (peg and socket, like a printed box lid) and living hinges; snap clip, sliding bolt,
   padlock hasp, magnet catch and turn button. Each has screw holes (optionally countersunk) and a fit gap
+- Joints: dovetail, tongue and groove, T-slot, puzzle, finger joint, pegs and holes, snap tabs.
+  Each is a matching pair of blocks, printed flat side by side, with an adjustable fit gap
 - Type what you want: a no-AI keyword box ("box 120 x 80 x 50 mm, 3 x 2 compartments, hinged lid").
   It suggests words as you type and shows what it understood and what it skipped
 - Print check: printer bed size, floating parts, overhangs, thin walls, filament and time estimate
 
 ## Source
-`src/` holds the page pieces (`head.html`, `body.html`, `app.js`, `makers.js`, `editor.js`, `picture.js`, `hardware.js`, `prompt.js`). `build.py` stitches them
+`src/` holds the page pieces (`head.html`, `body.html`, `app.js`, `makers.js`, `editor.js`, `picture.js`, `hardware.js`, `joints.js`, `prompt.js`). `build.py` stitches them
 together with the inlined font and the Manifold WASM binary (from the `manifold-3d@3.5.4` npm package).
 Libraries: three@0.186.1, manifold-3d@3.5.4 (loaded from jsDelivr).
 

@@ -33,6 +33,14 @@ const KW = [
   ['knob|handle knob|drawer knob', 'obj:spin:Knob'],
   ['spinning top|spinner', 'obj:spin:Spinner'],
   ['bead', 'obj:spin:Bead'],
+  ['dovetail joint|dovetail|dove tail|dovetails|dovetail slot', 'obj:joint:dovetail'],
+  ['tongue and groove|tongue groove|tongue', 'obj:joint:tongue'],
+  ['t slot|tee slot|t track|t shaped slot', 'obj:joint:tee'],
+  ['puzzle joint|jigsaw joint|jigsaw|puzzle', 'obj:joint:puzzle'],
+  ['finger joint|finger joints|box joint|box joints|comb joint|fingers', 'obj:joint:fingers'],
+  ['peg joint|pegs and holes|peg and hole|dowel joint|dowels|dowel|pegs|peg', 'obj:joint:peg'],
+  ['snap joint|snap tabs|snap tab|snap together|snap fit joint', 'obj:joint:snap'],
+  ['joint|joints|connector|connectors|connection', 'obj:joint:dovetail'],
   ['hinge|hinges', 'obj:hinge'],
   ['living hinge|flexible hinge|flex hinge|bendy hinge', 'obj:hinge:living'],
   ['snap clip|snap fit|snap latch|clip|clips|latch|latches|catch', 'obj:latch:snap'],
@@ -312,6 +320,18 @@ function planPrompt(src) {
       said.push(`${mm(hd)} hole through the middle`);
     }
     parts.push({ items, n: countOf(main) });
+  } else if (main.tag.startsWith('obj:joint')) {
+    const kind = main.tag.split(':')[2] || 'dovetail', p = { ...JOINT_DEFAULTS[kind] };
+    const v = dims ? dims.vals : [];
+    if (v[0]) p.w = v[0]; if (v[1]) p.d = v[1]; if (v[2]) p.h = v[2];
+    if (val('w') != null) p.w = val('w'); if (val('d') != null) p.d = val('d'); if (val('h') != null) p.h = val('h');
+    if (val('gap') != null) p.tol = clamp(val('gap'), 0.1, 1);
+    const cc = P.groups.find((g) => g.role === 'count' && g.target === main);
+    if (cc && (kind === 'fingers' || kind === 'peg')) { p.n = clamp(Math.round(cc.vals[0]), kind === 'peg' ? 1 : 2, kind === 'peg' ? 8 : 12); cc.consumed = true; }
+    p.w = clamp(p.w, 10, 150); p.d = clamp(p.d, 4, 80); p.h = clamp(p.h, 4, 120);
+    if (kind === 'fingers' || kind === 'peg') said.push(`${p.n} ${kind === 'peg' ? 'pegs' : 'fingers'}`);
+    said.push(JOINT_KINDS.find(([x]) => x === kind)[1].replace(/ joint$/i, '') + ' joint (two matching blocks)', `${fmt(p.w)} × ${fmt(p.d)} mm each, ${fmt(p.h)} mm tall`);
+    parts.push({ maker: 'joint', p, n: cc && !cc.consumed ? countOf(main) : 1 });
   } else if (main.tag.startsWith('obj:spin:')) {
     const name = main.tag.slice(9), prof = OUTLINE_TEMPLATES.spin[name];
     const rmax = Math.max(...prof.map((q) => q[0])), zs = prof.map((q) => q[1]), zmin = Math.min(...zs), zmax = Math.max(...zs);
@@ -425,7 +445,7 @@ const ASK_EXAMPLES = [
 ];
 const ASK_WORDS = [
   ['box', 'storage box'], ['gridfinity bin', 'fits Gridfinity'], ['gridfinity baseplate', 'grid to hold bins'], ['keychain', 'tag with a hole'], ['sign', 'plate with text'], ['coaster', 'round mat'],
-  ['letters', 'standing text'], ['hinge', 'swinging joint'], ['print in place hinge', 'one piece'], ['filament pin hinge', 'pin from filament'], ['snap on hinge', 'clips together'], ['living hinge', 'bendy strip'],
+  ['letters', 'standing text'], ['hinge', 'swinging joint'], ['dovetail', 'sliding lock'], ['finger joint', 'interleaved fingers'], ['t slot', 'T-shaped slide'], ['puzzle joint', 'jigsaw shape'], ['pegs and holes', 'push-fit'], ['snap tabs', 'click together'], ['tongue and groove', 'slide-in rail'], ['print in place hinge', 'one piece'], ['filament pin hinge', 'pin from filament'], ['snap on hinge', 'clips together'], ['living hinge', 'bendy strip'],
   ['snap clip', 'springy latch'], ['sliding bolt', 'slide to lock'], ['padlock hasp', 'for a padlock'], ['magnet catch', 'holds with magnets'], ['turn button', 'swivel latch'],
   ['cube', 'shape'], ['cylinder', 'shape'], ['sphere', 'shape'], ['cone', 'shape'], ['pyramid', 'shape'], ['tube', 'shape'], ['ring', 'shape'], ['star', 'shape'], ['heart', 'shape'], ['hexagon', 'shape'], ['wedge', 'shape'],
   ['cup', 'spun shape'], ['bowl', 'spun shape'], ['vase', 'spun shape'], ['knob', 'spun shape'],
@@ -439,6 +459,7 @@ const ASK_NEXT = {
   storage: ['compartments', 'hinged lid', 'slide lid', 'push on lid', 'scoops', 'label', 'walls', 'handles', 'stackable', 'snap clip'],
   gridfinity: ['units', 'compartments', 'scoops', 'label shelf', 'magnets', 'no lip'],
   keychain: ['text', 'hole', 'engraved', 'thick'], sign: ['text', 'screw holes', 'engraved', 'thick'], coaster: ['text', 'engraved', 'thick'],
+  joint: ['wide', 'tall', 'deep', 'gap'],
   hinge: ['wide', 'knuckles', 'no screw holes', 'print in place', 'filament pin', 'snap on'], latch: ['no screw holes', 'mm'],
 };
 let askTimer = 0;
