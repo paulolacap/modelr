@@ -101,13 +101,18 @@ function buildStorage(p, outer) {
 
     // Outer body
     if (g) {
-      const feet = [];
-      for (let i = 0; i < p.gx; i++) for (let j = 0; j < p.gy; j++) {
-        const cx = -(p.gx - 1) * 21 + 42 * i, cy = -(p.gy - 1) * 21 + 42 * j;
-        feet.push(hullSlices(k, [[35.6, 35.6, 0.8, 0], [37.2, 37.2, 1.6, 0.8], [37.2, 37.2, 1.6, 2.6]], cx, cy));
+      // Half-grid: 21 mm feet instead of 42 mm, needed for sizes like 1.5 units. Magnets and screws only fit full feet.
+      const fs = gfHalf(p) ? 21 : 42, nx = Math.round((p.gx * 42) / fs), ny = Math.round((p.gy * 42) / fs), feet = [];
+      for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+        const cx = (-(nx - 1) / 2 + i) * fs, cy = (-(ny - 1) / 2 + j) * fs;
+        feet.push(hullSlices(k, [[fs - 6.4, fs - 6.4, 0.8, 0], [fs - 4.8, fs - 4.8, 1.6, 0.8], [fs - 4.8, fs - 4.8, 1.6, 2.6]], cx, cy));
         // 0.02 mm under full width and running up into the body, so the two overlap instead of touching.
-        feet.push(hullSlices(k, [[37.2, 37.2, 1.6, 2.6], [41.48, 41.48, 3.74, 4.75], [41.48, 41.48, 3.74, 5.2]], cx, cy));
-        if (p.magnets) for (const sx of [-13, 13]) for (const sy of [-13, 13]) cuts2.push(cylZ(k, cx + sx, cy + sy, -1, 2.4, 3.25));
+        feet.push(hullSlices(k, [[fs - 4.8, fs - 4.8, 1.6, 2.6], [fs - 0.52, fs - 0.52, 3.74, 4.75], [fs - 0.52, fs - 0.52, 3.74, 5.2]], cx, cy));
+        if (fs === 42) for (const sx of [-13, 13]) for (const sy of [-13, 13]) {
+          if (p.magnets) cuts2.push(cylZ(k, cx + sx, cy + sy, -1, 2.4, 3.25));
+          // M3 screw holes, stopping 0.6 mm under the inside floor.
+          if (p.screws) cuts2.push(cylZ(k, cx + sx, cy + sy, -1, Math.min(6, floorZ - 0.6), 1.5));
+        }
       }
       solids.push(...feet, rrPrism(k, W, D, R, GF.base, p.lip ? H + GF.lip : H));
     } else {
@@ -150,14 +155,21 @@ function buildStorage(p, outer) {
         adds.push(prismX(k, pts, -iW / 2 - 0.05, iW + 0.1));
       }
     }
-    // Label shelf: a 45° supported tab at the back of each row
+    // Label shelf: a 45° supported tab at the back of each row, full width or a short tab in each column
     if (p.label === 'shelf') {
+      const pos = p.labelPos || 'full', spans = [];
+      if (pos === 'full') spans.push([-iW / 2 - 0.05, iW / 2 + 0.05]);
+      else for (let i = 0; i < cols; i++) {
+        const x0 = -iW / 2 + (i * iW) / cols + (i > 0 ? divT / 2 : 0), x1 = -iW / 2 + ((i + 1) * iW) / cols - (i < cols - 1 ? divT / 2 : 0);
+        const tw = Math.min(x1 - x0, Math.max(16, (x1 - x0) * 0.4));
+        spans.push(pos === 'left' ? [x0 - 0.05, x0 + tw] : pos === 'right' ? [x1 - tw, x1 + 0.05] : [(x0 + x1 - tw) / 2, (x0 + x1 + tw) / 2]);
+      }
       for (let j = 0; j < rows; j++) {
         const [y0, y1] = rowSpan(j);
         const t = Math.min(12, (y1 - y0) * 0.35);
         const zt = Math.min(d.top, H) - (g ? 0 : 0.5);
         if (t < 3 || zt - t < floorZ) continue;
-        adds.push(prismX(k, [[y1 + 0.05, zt], [y1 - t, zt], [y1 - t, zt - 0.8], [y1 + 0.05, zt - 0.8 - t]], -iW / 2 - 0.05, iW + 0.1));
+        for (const [xa, xb] of spans) adds.push(prismX(k, [[y1 + 0.05, zt], [y1 - t, zt], [y1 - t, zt - 0.8], [y1 + 0.05, zt - 0.8 - t]], xa, xb - xa));
       }
     }
     // Text on the front
@@ -362,27 +374,44 @@ function buildLid(p) {
   });
 }
 // A Gridfinity baseplate of gx x gy cells, centred on the origin, sitting on z = 0.
-function gfPlate(k, gx, gy) {
-  const W = 42 * gx, D = 42 * gy, Hp = 4.65;
-  const plate = rrPrism(k, W, D, 4, 0, Hp);
+// Magnets or screws add a 3 mm floor under the grid: 6.5 × 2.4 mm magnet pockets under each bin's magnets
+// and a countersunk screw hole in the middle of each square. o.W / o.D add a solid border round the grid.
+function gfPlate(k, gx, gy, o = {}) {
+  const Hp = 4.65, under = o.magnets || o.screws ? 3 : 0;
+  const W = Math.max(42 * gx, o.W || 0), D = Math.max(42 * gy, o.D || 0);
+  const plate = rrPrism(k, W, D, 4, 0, under + Hp);
   const cav = [];
-  const sl = (inset, r, z) => [42 - 2 * inset, 42 - 2 * inset, r, z];
+  const sl = (inset, r, z) => [42 - 2 * inset, 42 - 2 * inset, r, z + under];
   for (let i = 0; i < gx; i++) for (let j = 0; j < gy; j++) {
     const cx = -(gx - 1) * 21 + 42 * i, cy = -(gy - 1) * 21 + 42 * j;
-    cav.push(hullSlices(k, [sl(2.85, 1.15, -1), sl(2.85, 1.15, 0.7 - 0.7)], cx, cy));
+    if (!under) cav.push(hullSlices(k, [sl(2.85, 1.15, -1), sl(2.85, 1.15, 0)], cx, cy));
     cav.push(hullSlices(k, [sl(2.85, 1.15, 0), sl(2.15, 1.85, 0.7), sl(2.15, 1.85, 2.5)], cx, cy));
     cav.push(hullSlices(k, [sl(2.15, 1.85, 2.5), sl(0, 4, Hp), sl(-0.3, 4.3, Hp + 0.3)], cx, cy));
+    if (o.magnets) for (const sx of [-13, 13]) for (const sy of [-13, 13]) cav.push(cylZ(k, cx + sx, cy + sy, under - 2.4, under + 0.01, 3.25));
+    if (o.screws) {
+      cav.push(cylZ(k, cx, cy, -1, under + 0.01, 1.75));
+      cav.push(k(k(MF.cylinder(2.3, 1.75, 4.05, 40)).translate([cx, cy, under - 2.29])));
+    }
   }
   return k(plate.subtract(unionAll(k, cav)));
 }
-function buildBaseplate(p) {
-  return withScope((k) => manifoldToGeom(gfPlate(k, clamp(Math.round(p.gx), 1, 12), clamp(Math.round(p.gy), 1, 12))));
+// Squares and border for a baseplate; "fit" fills a drawer of dw x dd mm, the grid centred in it.
+function gfPlateLayout(p) {
+  if (!p.fit) { const gx = clamp(Math.round(p.gx), 1, 12), gy = clamp(Math.round(p.gy), 1, 12); return { gx, gy, W: 42 * gx, D: 42 * gy }; }
+  const W = clamp(p.dw, 42, 1000), D = clamp(p.dd, 42, 1000);
+  return { gx: Math.floor(W / 42), gy: Math.floor(D / 42), W, D };
 }
+function buildBaseplate(p) {
+  const L = gfPlateLayout(p);
+  return withScope((k) => manifoldToGeom(gfPlate(k, L.gx, L.gy, { W: L.W, D: L.D, magnets: p.magnets, screws: p.screws })));
+}
+// Half-size feet: asked for, or needed because the size is not a whole number of units.
+const gfHalf = (p) => !!(p.halfGrid || p.gx % 1 || p.gy % 1);
 
 const MAKER_DEFAULTS = {
-  storage: { style: 'plain', w: 80, d: 60, h: 40, wall: 1.6, floor: 1.2, radius: 4, soften: 1, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: false, scoopR: 12, notch: false, handles: false, label: 'none', labelText: 'SCREWS', lid: 'none', lock: 'none', lidT: 2, tol: 0.3, stack: false, sideLock: false, gfInside: false },
-  gridfinity: { style: 'gridfinity', gx: 2, gy: 1, gz: 6, wall: 1.2, floor: 1.2, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: true, scoopR: 12, notch: false, handles: false, label: 'shelf', labelText: 'BITS', lip: true, magnets: false, tol: 0.3 },
-  gfplate: { gx: 3, gy: 3 },
+  storage: { style: 'plain', w: 80, d: 60, h: 40, wall: 1.6, floor: 1.2, radius: 4, soften: 1, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: false, scoopR: 12, notch: false, handles: false, label: 'none', labelPos: 'full', labelText: 'SCREWS', lid: 'none', lock: 'none', lidT: 2, tol: 0.3, stack: false, sideLock: false, gfInside: false },
+  gridfinity: { style: 'gridfinity', gx: 2, gy: 1, gz: 6, wall: 1.2, floor: 1.2, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: true, scoopR: 12, notch: false, handles: false, label: 'shelf', labelPos: 'full', labelText: 'BITS', lip: true, magnets: false, screws: false, halfGrid: false, tol: 0.3 },
+  gfplate: { gx: 3, gy: 3, fit: false, dw: 200, dd: 150, magnets: false, screws: false },
 };
 const MAKERS = {
   storage: { label: 'Storage box', build: buildStorage },

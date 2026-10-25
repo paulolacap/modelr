@@ -70,6 +70,7 @@ const KW = [
   ['side lock|side locks|side clasp|side clasps|side latch|side latches|side clips|locking stack|stack lock|stackable lock|side snap|side lock stack', 'f:sidelock'],
   ['stackable|stacking|stack|stacks', 'f:stack'],
   ['magnets|magnet|magnet holes', 'f:magnets'],
+  ['half grid|half size|half sized|half size feet|half grid feet|half pitch|half feet', 'f:half'],
   ['stacking lip|lip', 'f:lip'],
   ['rounded|rounded corners|round corners', 'f:rounded'],
   ['sharp corners|square corners|sharp', 'f:sharp'],
@@ -150,7 +151,8 @@ function parsePrompt(src) {
     else if (after && after.tag.startsWith('k:') && !g.unit && g.vals.length === 1 && toks.slice(g.i1 + 1, g.i1 + 8).find((t) => t.tag && t.tag.startsWith('obj:'))) { g.role = 'count'; g.target = toks.slice(g.i1 + 1, g.i1 + 8).find((t) => t.tag && t.tag.startsWith('obj:')); }
     else if (before && before.tag.startsWith('m:') && !(before.countedBy)) { g.role = before.tag.slice(2); before.countedBy = g; }
     else if (before && before.tag === 'f:hole') g.role = 'hole';
-    else if (before && before.tag === 'f:magnets' || after && (after.tag === 'f:magnets' || after.tag === 'obj:latch:magnet') && g.vals.length === 2) g.role = 'magnet';
+    // A size next to "magnets" is the magnet size, unless it is a Gridfinity grid ("2 x 2 with magnets", fixed 6 x 2 mm magnets).
+    else if ((before && before.tag === 'f:magnets' || after && (after.tag === 'f:magnets' || after.tag === 'obj:latch:magnet') && g.vals.length === 2) && (g.unit || toks.some((t) => t.tag === 'obj:latch:magnet'))) g.role = 'magnet';
     else g.role = 'dims';
     if (g.role === 'count' && g.target.tag === 'f:magnets') g.role = 'magnetCount';
   }
@@ -208,15 +210,18 @@ function planPrompt(src) {
     const p = structuredClone(g ? MAKER_DEFAULTS.gridfinity : MAKER_DEFAULTS.storage);
     said.push(g ? 'Gridfinity bin' : 'Storage box');
     if (g) {
-      const toU = (v, unitless, step) => Math.max(1, Math.round(unitless ? v : v / step));
+      // Width and depth go in half units (1.5 units, 63 mm), height in whole units.
+      const toU = (v, unitless, step) => Math.max(step === 42 ? 0.5 : 1, step === 42 ? Math.round((unitless ? v : v / step) * 2) / 2 : Math.round(unitless ? v : v / step));
       if (dims) {
         const ul = !dims.unit && dims.vals.every((v) => v <= 24);
         [p.gx, p.gy, p.gz] = [toU(dims.vals[0], ul, 42), toU(dims.vals[1] ?? (ul ? 1 : 42), ul, 42), dims.vals[2] != null ? toU(dims.vals[2], ul, 7) : p.gz];
       }
-      const u = P.role('units'); if (u) { p.gx = Math.round(u.vals[0]); if (u.vals[1]) p.gy = Math.round(u.vals[1]); if (u.vals[2]) p.gz = Math.round(u.vals[2]); }
+      const u = P.role('units'); if (u) { p.gx = Math.round(u.vals[0] * 2) / 2; if (u.vals[1]) p.gy = Math.round(u.vals[1] * 2) / 2; if (u.vals[2]) p.gz = Math.round(u.vals[2]); }
       if (val('h') != null) p.gz = Math.max(2, Math.round(P.role('h').unit ? val('h') / 7 : val('h')));
-      p.gx = clamp(p.gx, 1, 10); p.gy = clamp(p.gy, 1, 10); p.gz = clamp(p.gz, 2, 24);
+      p.gx = clamp(p.gx, 0.5, 10); p.gy = clamp(p.gy, 0.5, 10); p.gz = clamp(p.gz, 2, 24);
       said.push(`${p.gx} × ${p.gy} units, ${p.gz} high (${p.gx * 42} × ${p.gy * 42} × ${p.gz * 7} mm)`);
+      if (P.flag('f:half')) p.halfGrid = true;
+      if (gfHalf(p)) said.push('Half-size feet (21 mm)');
     } else {
       if (dims) {
         const v = dims.vals;
@@ -261,6 +266,7 @@ function planPrompt(src) {
     } else {
       if (P.flag('f:lip') === false) { p.lip = false; said.push('No stacking lip'); }
       if (P.flag('f:magnets')) { p.magnets = true; said.push('Magnet holes under the feet'); }
+      if (P.flag('f:screws')) { p.screws = true; said.push('Screw holes under the feet'); }
     }
     for (const [tag, key, label] of [['f:scoop', 'scoop', 'Finger scoops'], ['f:notch', 'notch', 'Finger notch'], ['f:handles', 'handles', 'Handle slots']]) {
       const f = P.flag(tag); if (f == null) continue; p[key] = f; said.push(f ? label : `No ${label.toLowerCase()}`);
@@ -271,8 +277,18 @@ function planPrompt(src) {
   } else if (main.tag === 'obj:gfplate') {
     const p = { ...MAKER_DEFAULTS.gfplate };
     const d = dims || P.role('units');
-    if (d) { const ul = !d.unit && d.vals.every((v) => v <= 12); p.gx = clamp(Math.round(ul ? d.vals[0] : d.vals[0] / 42), 1, 12); p.gy = clamp(Math.round(ul ? d.vals[1] ?? d.vals[0] : (d.vals[1] ?? d.vals[0]) / 42), 1, 12); }
-    said.push('Gridfinity baseplate', `${p.gx} × ${p.gy} squares (${p.gx * 42} × ${p.gy * 42} mm)`);
+    const ul = d && !d.unit && d.vals.every((v) => v <= 12);
+    if (d && !ul && P.toks.some((t) => /^drawers?$/.test(t.w))) {
+      // "baseplate for a 300 x 200 mm drawer": fill the drawer, with a solid border round the grid.
+      p.fit = true; p.dw = clamp(d.vals[0], 42, 1000); p.dd = clamp(d.vals[1] ?? d.vals[0], 42, 1000);
+      const L = gfPlateLayout(p);
+      said.push('Gridfinity baseplate', `Fills a ${fmt(p.dw)} × ${fmt(p.dd)} mm drawer with ${L.gx} × ${L.gy} squares`);
+    } else {
+      if (d) { p.gx = clamp(Math.round(ul ? d.vals[0] : d.vals[0] / 42), 1, 12); p.gy = clamp(Math.round(ul ? d.vals[1] ?? d.vals[0] : (d.vals[1] ?? d.vals[0]) / 42), 1, 12); }
+      said.push('Gridfinity baseplate', `${p.gx} × ${p.gy} squares (${p.gx * 42} × ${p.gy * 42} mm)`);
+    }
+    if (P.flag('f:magnets')) { p.magnets = true; said.push('Magnet holes in each square'); }
+    if (P.flag('f:screws')) { p.screws = true; said.push('Countersunk screw holes'); }
     parts.push({ maker: 'gfplate', p, n: countOf(main) });
   } else if (main.tag === 'obj:keychain' || main.tag === 'obj:sign' || main.tag === 'obj:coaster') {
     const kind = main.tag.slice(4), v = dims ? dims.vals : [];
@@ -448,6 +464,7 @@ function buildPrompt(src) {
 const ASK_EXAMPLES = [
   'box 120 x 80 x 50 mm, 3 x 2 compartments, hinged lid, 2 mm walls',
   'gridfinity bin 2 x 1 x 6 units with scoops and label shelf',
+  'gridfinity baseplate for a 320 x 240 mm drawer with magnets',
   'keychain with text "PAULO", 4 mm hole',
   'sign 150 x 50 mm saying "WORKSHOP" with screw holes',
   '2 print in place hinges 50 mm wide',
@@ -465,13 +482,14 @@ const ASK_WORDS = [
   ['cup', 'spun shape'], ['bowl', 'spun shape'], ['vase', 'spun shape'], ['knob', 'spun shape'],
   ['compartments', 'e.g. 3 x 2 compartments'], ['dividers', 'e.g. 2 dividers'], ['walls', 'e.g. 2 mm walls'], ['floor', 'e.g. floor 1.5 mm'], ['corners', 'e.g. corners 5 mm'],
   ['hinged lid', 'lid on a hinge'], ['inner hinged lid', 'hidden hinge'], ['clasp', 'front snap lock'], ['inner clasp', 'hidden snap lock'], ['padlock tab', 'hole for a lock'], ['snap hinged lid', 'pegs click in'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
-  ['label shelf', 'spot for a label'], ['label', 'add text after it'], ['stackable', 'stacking foot'], ['side locks', 'stack clicks together'], ['gridfinity inside', 'grid on the floor'], ['magnets', 'Gridfinity magnet holes'], ['engraved', 'text cut in'], ['raised', 'text sticks out'],
+  ['label shelf', 'spot for a label'], ['label', 'add text after it'], ['stackable', 'stacking foot'], ['side locks', 'stack clicks together'], ['gridfinity inside', 'grid on the floor'], ['magnets', 'Gridfinity magnet holes'], ['half grid', 'Gridfinity 21 mm feet'], ['drawer', 'e.g. for a 300 x 200 mm drawer'], ['engraved', 'text cut in'], ['raised', 'text sticks out'],
   ['text', 'then your words'], ['hole', 'e.g. 4 mm hole'], ['screw holes', 'mounting holes'], ['no screw holes', 'glue instead'], ['knuckles', 'e.g. 5 knuckles'],
   ['wide', 'e.g. 50 mm wide'], ['tall', 'e.g. 40 mm tall'], ['deep', 'e.g. 30 mm deep'], ['thick', 'e.g. 3 mm thick'], ['diameter', 'e.g. diameter 60 mm'], ['mm', 'millimetres'], ['cm', 'centimetres'], ['inch', '25.4 mm'],
 ];
 const ASK_NEXT = {
   storage: ['compartments', 'hinged lid', 'inner hinged lid', 'clasp', 'slide lid', 'push on lid', 'scoops', 'label', 'walls', 'handles', 'stackable', 'snap clip'],
-  gridfinity: ['units', 'compartments', 'scoops', 'label shelf', 'magnets', 'no lip'],
+  gridfinity: ['units', 'compartments', 'scoops', 'label shelf', 'magnets', 'screw holes', 'half grid', 'no lip'],
+  gfplate: ['drawer', 'magnets', 'screw holes'],
   keychain: ['text', 'hole', 'engraved', 'thick'], sign: ['text', 'screw holes', 'engraved', 'thick'], coaster: ['text', 'engraved', 'thick'],
   joint: ['wide', 'tall', 'deep', 'gap'],
   hinge: ['wide', 'knuckles', 'no screw holes', 'print in place', 'filament pin', 'snap on'], latch: ['no screw holes', 'mm'],
