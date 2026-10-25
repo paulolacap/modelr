@@ -1,0 +1,182 @@
+<div class="app">
+  <header class="bar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">◆</span>Shape Workshop</div>
+    <input id="projectName" aria-label="Design name" value="My design" spellcheck="false">
+    <button class="btn ghost small" id="btnUndo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg><span class="hide-narrow">Undo</span></button>
+    <button class="btn ghost small" id="btnRedo" title="Redo (Ctrl+Shift+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg><span class="hide-narrow">Redo</span></button>
+    <div class="spacer"></div>
+    <label class="snap" for="snapSel" title="Shapes move and resize in steps of this size">Snap
+      <select id="snapSel">
+        <option value="0">Off</option>
+        <option value="0.1">0.1 mm</option>
+        <option value="0.5">0.5 mm</option>
+        <option value="1" selected>1 mm</option>
+        <option value="2">2 mm</option>
+        <option value="5">5 mm</option>
+        <option value="10">10 mm</option>
+      </select>
+    </label>
+    <button class="btn small" id="btnNew" title="Start a new, empty design">New</button>
+    <button class="btn small hide-narrow" id="btnOpen" title="Open a design file you saved earlier">Open</button>
+    <button class="btn small hide-narrow" id="btnSave" title="Save this design as a file you can open again later">Save</button>
+    <button class="btn small ghost" id="btnHelp" title="Keyboard shortcuts and tips">?</button>
+    <button class="btn small" id="btnCheck" title="Check the design before printing: size, overhangs, thin walls, print time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10"/></svg>Print check</button>
+    <button class="btn primary" id="btnExport" title="Download an STL file for your slicer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>Export STL</button>
+    <input type="file" id="fileOpen" accept=".json,application/json" hidden>
+  </header>
+
+  <main class="work">
+    <aside class="bin" aria-label="Shapes">
+      <button class="ask-btn" id="btnAsk" title="Type what you want, like: box 120 x 80 x 50 mm with a hinged lid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg><span>Type what you want…</span></button>
+      <h2>From a picture</h2>
+      <div class="shapes" id="picShapes"></div>
+      <h2>Draw your own</h2>
+      <div class="shapes" id="drawShapes"></div>
+      <h2>Storage</h2>
+      <div class="shapes" id="makerShapes"></div>
+      <h2>Hinges &amp; locks</h2>
+      <div class="shapes" id="hwShapes"></div>
+      <h2>Shapes</h2>
+      <div class="shapes" id="solidShapes"></div>
+      <h2>Holes</h2>
+      <div class="shapes" id="holeShapes"></div>
+      <p class="bin-note">Click a shape to add it, or drag it onto the plate. A <b>hole</b> cuts away whatever it overlaps once you group them together.</p>
+    </aside>
+
+    <section class="stage" id="stage" aria-label="Build plate">
+      <div class="float modes" role="group" aria-label="Handle type">
+        <button class="seg" data-mode="translate" aria-pressed="true" title="Move (M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"/><path d="m9 6 3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>Move <kbd>M</kbd></button>
+        <button class="seg" data-mode="rotate" aria-pressed="false" title="Rotate (R)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/></svg>Rotate <kbd>R</kbd></button>
+        <button class="seg" data-mode="scale" aria-pressed="false" title="Resize (S)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="10" height="10" rx="1"/><path d="M14 3h7v7M21 3l-8 8"/></svg>Resize <kbd>S</kbd></button>
+      </div>
+      <div class="float views" role="group" aria-label="Camera">
+        <button class="seg" data-view="home" title="Back to the starting view">Home</button>
+        <button class="seg" data-view="top" title="Look straight down">Top</button>
+        <button class="seg" data-view="front" title="Look from the front">Front</button>
+        <button class="seg" data-view="side" title="Look from the right side">Side</button>
+        <button class="seg" data-view="fit" title="Zoom to fit the selection or everything (F)">Fit</button>
+      </div>
+      <div class="legend" id="legend">Plate 200 × 200 mm · 1 square = 10 mm</div>
+      <div class="dim" id="dimW" hidden></div>
+      <div class="dim" id="dimD" hidden></div>
+      <div class="dim" id="dimH" hidden></div>
+      <div class="drop-hint" id="dropHint" hidden></div>
+      <div class="pe" id="pathEditor" hidden>
+        <div class="pe-bar">
+          <div class="pe-modes" role="group" aria-label="Kind of shape">
+            <button class="seg" data-pemode="extrude" aria-pressed="true" title="Draw the outline as seen from above; it is pushed straight up">Flat outline</button>
+            <button class="seg" data-pemode="spin" aria-pressed="false" title="Draw half the side view; it is spun around the centre line, like a cup or vase">Spin around</button>
+          </div>
+          <select id="peTemplate" class="sel pe-tpl" aria-label="Start from a ready-made outline"></select>
+          <button class="btn small" id="peImgBtn" title="Put a picture behind the grid and trace over it">Trace a picture</button>
+          <input type="file" id="peImgFile" accept="image/*" hidden>
+          <span class="spacer"></span>
+          <button class="btn small ghost" id="peUndo" title="Undo (Ctrl+Z)">Undo</button>
+          <button class="btn small ghost" id="peZoomOut" aria-label="Zoom out">−</button>
+          <button class="btn small ghost" id="peZoomIn" aria-label="Zoom in">+</button>
+          <button class="btn small ghost" id="peFit">Fit</button>
+        </div>
+        <div class="pe-img" id="peImgRow" hidden>
+          <label for="peImgW">Picture width <span class="unit">mm</span></label><input id="peImgW" type="number" min="1" step="1">
+          <label for="peImgOp">Fade</label><input id="peImgOp" type="range" min="0.1" max="1" step="0.05">
+          <button class="btn small ghost" id="peImgDel">Remove picture</button>
+        </div>
+        <div class="pe-canvas">
+          <svg id="peSvg" aria-label="Outline drawing board"></svg>
+          <div class="pe-warn" id="peWarn" hidden>Some lines cross. The shape may come out with gaps or overlaps.</div>
+          <div class="pe-prev"><canvas id="pePrev"></canvas><span id="peErr" hidden>No area yet</span></div>
+        </div>
+        <div class="pe-foot">
+          <div class="pe-point" id="pePoint" hidden>
+            <div class="field"><label for="peX" id="peXLabel">X <span class="unit">mm</span></label><input id="peX" type="number" step="0.5"></div>
+            <div class="field"><label for="peY" id="peYLabel">Y <span class="unit">mm</span></label><input id="peY" type="number" step="0.5"></div>
+            <label class="check"><input type="checkbox" id="peSmooth"> Round corner</label>
+            <button class="btn small" id="peDel">Delete dot</button>
+          </div>
+          <p class="help" id="peHint"><b>Drag a dot</b> to move it. <b>Drag a +</b> to add a dot. <b>Double-click</b> a dot to make its corner round or sharp. Right-click or press Delete to remove one.</p>
+          <div class="pe-size">
+            <div class="field"><label for="peW" id="peWLabel">Width <span class="unit">mm</span></label><input id="peW" type="number" step="1"></div>
+            <div class="field"><label for="peD" id="peDLabel">Depth <span class="unit">mm</span></label><input id="peD" type="number" step="1"></div>
+            <span id="peExtrudeOpts" class="pe-ex">
+              <span class="field"><label for="peHeight">Height <span class="unit">mm</span></label><input id="peHeight" type="number" step="1" min="0.2"></span>
+              <span class="field"><label for="peTwist">Twist <span class="unit">°</span></label><input id="peTwist" type="number" step="15"></span>
+              <span class="field"><label for="peTop">Top size <span class="unit">%</span></label><input id="peTop" type="number" step="10" min="0" max="400"></span>
+            </span>
+          </div>
+          <div class="row pe-done"><button class="btn" id="peCancel">Cancel</button><button class="btn primary" id="peDone">Done</button></div>
+        </div>
+      </div>
+      <div class="busy" id="busy" hidden>Combining shapes…</div>
+    </section>
+
+    <aside class="card" id="card" aria-label="Selected shape"></aside>
+  </main>
+</div>
+
+<div class="overlay" id="helpOverlay" hidden>
+  <div class="dialog" role="dialog" aria-labelledby="helpTitle">
+    <h3 id="helpTitle">Getting around</h3>
+    <div class="keys">
+      <span><b>Look around</b></span><span>Drag empty space to orbit. Right-drag or two fingers to slide the view. Scroll or pinch to zoom.</span>
+      <span><b>Move</b></span><span>Drag a shape across the plate. Use the arrows on the handle to lift it up.</span>
+      <span><kbd class="k">Shift</kbd> + click</span><span>Pick more than one shape</span>
+      <span><kbd class="k">M</kbd> <kbd class="k">R</kbd> <kbd class="k">S</kbd></span><span>Move, Rotate, Resize handles</span>
+      <span><kbd class="k">←</kbd><kbd class="k">→</kbd><kbd class="k">↑</kbd><kbd class="k">↓</kbd></span><span>Nudge by one snap step (hold <kbd class="k">Shift</kbd> for 10×)</span>
+      <span><kbd class="k">PgUp</kbd> <kbd class="k">PgDn</kbd></span><span>Nudge up or down</span>
+      <span><kbd class="k">H</kbd></span><span>Switch between solid and hole</span>
+      <span><kbd class="k">Ctrl</kbd>+<kbd class="k">G</kbd></span><span>Group selected shapes (holes cut in)</span>
+      <span><kbd class="k">Ctrl</kbd>+<kbd class="k">Shift</kbd>+<kbd class="k">G</kbd></span><span>Ungroup</span>
+      <span><kbd class="k">Ctrl</kbd>+<kbd class="k">D</kbd></span><span>Duplicate</span>
+      <span><kbd class="k">D</kbd></span><span>Drop onto the plate</span>
+      <span><kbd class="k">Del</kbd></span><span>Delete</span>
+      <span><kbd class="k">Ctrl</kbd>+<kbd class="k">Z</kbd></span><span>Undo (<kbd class="k">Ctrl</kbd>+<kbd class="k">Shift</kbd>+<kbd class="k">Z</kbd> to redo)</span>
+      <span><kbd class="k">F</kbd></span><span>Zoom to fit</span>
+    </div>
+    <p class="help" style="margin-top:14px">Every size is in millimetres. Your design saves itself in this browser as you work. Use <b>Save</b> to keep a copy as a file.</p>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" id="helpClose">Got it</button></div>
+  </div>
+</div>
+<div class="overlay" id="checkOverlay" hidden>
+  <div class="dialog" role="dialog" aria-labelledby="checkTitle">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px"><h3 id="checkTitle" style="margin:0">Print check</h3><button class="btn small ghost" id="checkClose" aria-label="Close">Close</button></div>
+    <div class="field" style="margin-bottom:14px"><label for="checkPrinter">Your printer</label><select id="checkPrinter" class="sel"></select></div>
+    <div id="checkBody"></div>
+  </div>
+</div>
+<div class="overlay" id="picOverlay" hidden>
+  <div class="dialog wide" role="dialog" aria-labelledby="picTitle">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 id="picTitle" style="margin:0">Make something from a picture</h3><button class="btn small ghost" id="picCancel">Close</button></div>
+    <div class="pe-modes pic-modes" role="group" aria-label="What to make">
+      <button class="seg" data-picmode="trace" aria-pressed="true">Outline</button>
+      <button class="seg" data-picmode="litho" aria-pressed="false">Lithophane</button>
+      <button class="seg" data-picmode="relief" aria-pressed="false">Relief</button>
+      <button class="seg" data-picmode="hueforge" aria-pressed="false">Colour layers</button>
+    </div>
+    <p class="help" id="picHelp"></p>
+    <div class="pic-body">
+      <div class="pic-left">
+        <div class="pic-drop" id="picDrop"><p>Drop a picture here</p><button class="btn primary" id="picChoose">Choose a picture</button><p class="help">PNG or JPG. Nothing is uploaded; it stays in your browser.</p></div>
+        <div id="picStage" hidden>
+          <canvas id="picCanvas"></canvas>
+          <div class="row" style="margin-top:8px"><span class="help" id="picSize"></span><span class="spacer"></span><button class="btn small" id="picPng" title="Save the grey height map as a PNG, for example to open in HueForge">Save height map</button><button class="btn small" id="picReplace">Use another picture</button></div>
+        </div>
+      </div>
+      <div class="pic-opts" id="picOpts"></div>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" id="picCreate" disabled>Add to plate</button></div>
+    <input type="file" id="picFile" accept="image/*" hidden>
+  </div>
+</div>
+<div class="overlay" id="askOverlay" hidden>
+  <div class="dialog ask" role="dialog" aria-labelledby="askTitle">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px"><h3 id="askTitle" style="margin:0">Type what you want</h3><button class="btn small ghost" id="askCancel">Close</button></div>
+    <p class="help">Use simple words and sizes, like the examples. This works with words the app knows, so it cannot draw anything you describe; for that, start from shapes or a picture.</p>
+    <input id="askInput" type="text" autocomplete="off" spellcheck="false" placeholder="box 100 x 60 x 40 mm with 3 compartments and a hinged lid" aria-describedby="askGot">
+    <div class="ask-sug" id="askSug" aria-label="Words you can use"></div>
+    <div class="ask-got-box" id="askGot" aria-live="polite"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn primary" id="askBuild" disabled>Make it</button></div>
+    <h2 class="ask-h">Examples</h2>
+    <div class="ask-exs" id="askEx"></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>

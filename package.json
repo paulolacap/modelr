@@ -1,0 +1,7 @@
+{
+  "name": "modelr",
+  "private": true,
+  "description": "Shape Workshop: a beginner-friendly 3D modeler for 3D printing, running in the browser",
+  "scripts": { "build": "python3 build.py" },
+  "devDependencies": { "manifold-3d": "3.5.4", "three": "0.186.1" }
+}
