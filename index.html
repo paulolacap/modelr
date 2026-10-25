@@ -742,7 +742,7 @@ function buildStorage(p, outer) {
     }
 
     // Compartments
-    const cols = clamp(Math.round(p.cols), 1, 20), rows = clamp(Math.round(p.rows), 1, 20);
+    const cols = p.gfInside ? 1 : clamp(Math.round(p.cols), 1, 20), rows = p.gfInside ? 1 : clamp(Math.round(p.rows), 1, 20);
     const divT = clamp(p.divT, 0.4, 5);
     const divTop = floorZ + (d.top - floorZ) * clamp(p.divH, 10, 100) / 100;
     for (let i = 1; i < cols; i++) { const x = -iW / 2 + (i * iW) / cols; adds.push(slab(k, x - divT / 2, x + divT / 2, -iD / 2 - 0.1, iD / 2 + 0.1, floorZ - 0.1, divTop)); }
@@ -825,6 +825,11 @@ function buildStorage(p, outer) {
         adds.push(k(MF.hull([cylX(k, Math.min(xw, s * (iW / 2 - 1.7)), Math.max(xw, s * (iW / 2 - 1.7)), il.ya, il.za, il.pr), cylX(k, Math.min(xt, s * (iW / 2 - 1.7)), Math.max(xt, s * (iW / 2 - 1.7)), il.ya, il.za, il.pr - 0.5)])));
       }
     }
+    if (!g && p.gfInside) {
+      const gx = Math.floor(iW / 42), gy = Math.floor(iD / 42);
+      if (gx >= 1 && gy >= 1) adds.push(k(gfPlate(k, gx, gy).translate([0, 0, floorZ - 0.01])));
+    }
+    if (sideLockOK(p, d)) adds.push(...sideLockParts(k, d, p));
     if (!g) { const lk = lockParts(k, d, p); adds.push(...lk.boxAdd); cuts2.push(...lk.boxCut); }
     let body = k(unionAll(k, solids).subtract(unionAll(k, cuts)));
     if (adds.length) body = k(MF.union([body, ...adds]));
@@ -832,6 +837,25 @@ function buildStorage(p, outer) {
     return outer ? body : manifoldToGeom(body);
   };
   return outer ? run(outer) : withScope(run);
+}
+// Side lock for stacked boxes: every box gets a bump low on each side wall and a springy arm that rises past its own top rim.
+// The arm of the box below clicks over the bump of the box above, so identical boxes lock together.
+const sideLockOK = (p, d) => !d.g && p.stack && p.sideLock && (!p.lid || p.lid === 'none') && d.H >= 20 && d.D - 2 * d.R - 2 >= 4;
+function sideLockParts(k, d, p) {
+  const { W, D, H, footH } = d, g = clamp(p.tol, 0.1, 1), bd = 0.9, at = 1.4, aw = clamp(Math.min(D / 3, D - 2 * d.R - 2), 4, 14);
+  const bz0 = footH + 1, ua = bd + g, ub = bd - 0.7, up = ua + at, off = H - footH;
+  const zbb = (u) => bz0 + bd + 1 + (bd - u) + 0.2 + off;
+  const bump = [[-0.3, bz0], [bd, bz0 + bd], [bd, bz0 + bd + 1], [-0.3, bz0 + bd + 1 + bd + 0.3]];
+  const zc = zbb(ub) + 0.8, barb = [[ua + 0.01, zbb(ua)], [ub, zbb(ub)], [ub, zc], [ua + 0.01, zc + (ua + 0.01 - ub) * 1.2]];
+  const za = H - 8, zt = barb[3][1], out = [];
+  const place = (m, s) => k(k(m.rotate([0, 0, -90 * s])).translate([s * W / 2, 0, 0]));
+  for (const s of [-1, 1]) {
+    out.push(place(prismX(k, bump, -aw / 2 - 0.5, aw + 1), s));
+    out.push(place(prismX(k, [[ua, za], [up, za], [up, zt], [ua, zt]], -aw / 2, aw), s));
+    out.push(place(prismX(k, [[-0.01, za], [up, za], [up, za + 2.2], [-0.01, za + 2.2]], -aw / 2, aw), s));
+    out.push(place(prismX(k, barb, -aw / 2, aw), s));
+  }
+  return out;
 }
 const SNAP_PEG = 1.7;
 const snapSock = (hk) => Math.min(2.4, (hk.segs[0][1] - hk.segs[0][0]) - 1.2);
@@ -950,25 +974,26 @@ function buildLid(p) {
     return manifoldToGeom(lid);
   });
 }
+// A Gridfinity baseplate of gx x gy cells, centred on the origin, sitting on z = 0.
+function gfPlate(k, gx, gy) {
+  const W = 42 * gx, D = 42 * gy, Hp = 4.65;
+  const plate = rrPrism(k, W, D, 4, 0, Hp);
+  const cav = [];
+  const sl = (inset, r, z) => [42 - 2 * inset, 42 - 2 * inset, r, z];
+  for (let i = 0; i < gx; i++) for (let j = 0; j < gy; j++) {
+    const cx = -(gx - 1) * 21 + 42 * i, cy = -(gy - 1) * 21 + 42 * j;
+    cav.push(hullSlices(k, [sl(2.85, 1.15, -1), sl(2.85, 1.15, 0.7 - 0.7)], cx, cy));
+    cav.push(hullSlices(k, [sl(2.85, 1.15, 0), sl(2.15, 1.85, 0.7), sl(2.15, 1.85, 2.5)], cx, cy));
+    cav.push(hullSlices(k, [sl(2.15, 1.85, 2.5), sl(0, 4, Hp), sl(-0.3, 4.3, Hp + 0.3)], cx, cy));
+  }
+  return k(plate.subtract(unionAll(k, cav)));
+}
 function buildBaseplate(p) {
-  return withScope((k) => {
-    const gx = clamp(Math.round(p.gx), 1, 12), gy = clamp(Math.round(p.gy), 1, 12);
-    const W = 42 * gx, D = 42 * gy, Hp = 4.65;
-    const plate = rrPrism(k, W, D, 4, 0, Hp);
-    const cav = [];
-    const sl = (inset, r, z) => [42 - 2 * inset, 42 - 2 * inset, r, z];
-    for (let i = 0; i < gx; i++) for (let j = 0; j < gy; j++) {
-      const cx = -(gx - 1) * 21 + 42 * i, cy = -(gy - 1) * 21 + 42 * j;
-      cav.push(hullSlices(k, [sl(2.85, 1.15, -1), sl(2.85, 1.15, 0.7 - 0.7)], cx, cy));
-      cav.push(hullSlices(k, [sl(2.85, 1.15, 0), sl(2.15, 1.85, 0.7), sl(2.15, 1.85, 2.5)], cx, cy));
-      cav.push(hullSlices(k, [sl(2.15, 1.85, 2.5), sl(0, 4, Hp), sl(-0.3, 4.3, Hp + 0.3)], cx, cy));
-    }
-    return manifoldToGeom(k(plate.subtract(unionAll(k, cav))));
-  });
+  return withScope((k) => manifoldToGeom(gfPlate(k, clamp(Math.round(p.gx), 1, 12), clamp(Math.round(p.gy), 1, 12))));
 }
 
 const MAKER_DEFAULTS = {
-  storage: { style: 'plain', w: 80, d: 60, h: 40, wall: 1.6, floor: 1.2, radius: 4, soften: 1, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: false, scoopR: 12, notch: false, handles: false, label: 'none', labelText: 'SCREWS', lid: 'none', lock: 'none', lidT: 2, tol: 0.3, stack: false },
+  storage: { style: 'plain', w: 80, d: 60, h: 40, wall: 1.6, floor: 1.2, radius: 4, soften: 1, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: false, scoopR: 12, notch: false, handles: false, label: 'none', labelText: 'SCREWS', lid: 'none', lock: 'none', lidT: 2, tol: 0.3, stack: false, sideLock: false, gfInside: false },
   gridfinity: { style: 'gridfinity', gx: 2, gy: 1, gz: 6, wall: 1.2, floor: 1.2, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: true, scoopR: 12, notch: false, handles: false, label: 'shelf', labelText: 'BITS', lip: true, magnets: false, tol: 0.3 },
   gfplate: { gx: 3, gy: 3 },
 };
@@ -2131,7 +2156,8 @@ function makerForm(o) {
     !g && { title: 'Lid', select: ['lid', [['none', 'No lid'], ['friction', 'Push-on lid'], ['slide', 'Slide-on lid'], ['hinge', 'Hinged lid (filament pin)'], ['snaphinge', 'Snap-on hinged lid'], ['inner', 'Inner hinged lid (hidden hinge)']]], fields: p.lid !== 'none' ? [['lidT', 'Lid thickness', 'mm', 1, 5, 0.1], ['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: LID_NOTES[p.lid] },
     !g && ['hinge', 'snaphinge', 'inner'].includes(p.lid) && { title: 'Lock', select: ['lock', LOCK_CHOICES], note: p.lock === 'hidden' ? (p.lid === 'inner' ? 'A springy hook under the lid clicks onto a bump inside the front wall, so the outside stays perfectly smooth. Slide a fingernail into the little scoop at the front edge and lift to open.' : 'The hidden clasp only works with the inner hinged lid. Pick that lid above.') : p.lock === 'clasp' ? 'A springy hook on the lid clicks under a ledge on the front of the box. Pull the little lip at the bottom of the hook to open it.' : p.lock === 'padlock' ? 'The lid and the box each get a tab with a hole. Slide a small padlock, a zip tie or a cable tie through both holes. The tab sticks out 12 mm at the front.' : 'Add a lock to keep the lid shut.' },
     g ? { title: 'Stacking', checks: [['lip', 'Stacking lip so another bin sits on top'], ['magnets', 'Magnet holes under the feet (6 × 2 mm)']] }
-      : { title: 'Stacking', checks: [['stack', 'Stacking foot that drops into the box below']], fields: p.stack && p.lid === 'none' ? [['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: p.stack ? 'The bottom 3 mm steps in so it sits inside the top of an identical box.' : '' },
+      : { title: 'Stacking', checks: [['stack', 'Stacking foot that drops into the box below'], ...(p.stack && p.lid === 'none' ? [['sideLock', 'Side locks that click stacked boxes together']] : [])], fields: p.stack && p.lid === 'none' ? [['tol', 'Fit gap', 'mm', 0.1, 1, 0.05]] : [], note: p.stack ? (p.sideLock ? 'The bottom 3 mm steps in so it sits inside the top of an identical box. Each box has a bump low on both sides and a springy arm that rises past its top edge: press the next box down until both arms click over its bumps. Pull the arms outward to unlock. Needs a box at least 20 mm tall.' : 'The bottom 3 mm steps in so it sits inside the top of an identical box.') : '' },
+    !g && { title: 'Gridfinity inside', checks: [['gfInside', 'Gridfinity grid on the floor inside']], note: p.gfInside ? 'A Gridfinity baseplate sits on the inside floor so Gridfinity bins click into it. It fits as many 42 mm squares as the inside allows, so an inside of 84 × 42 mm (or a multiple of 42) fits perfectly. Compartment dividers are turned off.' : '' },
   ].filter(Boolean);
 }
 function makerSections(o) {
@@ -3356,6 +3382,8 @@ const KW = [
   ['finger notch|notch', 'f:notch'],
   ['handle|handles|handle slots|grips', 'f:handles'],
   ['label shelf|labels|label', 'f:label'],
+  ['gridfinity inside|gridfinity in the box|gridfinity grid|gridfinity floor|gridfinity baseplate inside|inside gridfinity|gridfinity inner|inner gridfinity|gridfinity base inside', 'f:gfin'],
+  ['side lock|side locks|side clasp|side clasps|side latch|side latches|side clips|locking stack|stack lock|stackable lock|side snap|side lock stack', 'f:sidelock'],
   ['stackable|stacking|stack|stacks', 'f:stack'],
   ['magnets|magnet|magnet holes', 'f:magnets'],
   ['stacking lip|lip', 'f:lip'],
@@ -3543,6 +3571,8 @@ function planPrompt(src) {
         if (wantLock === 'hidden' ? p.lid !== 'inner' : !['hinge', 'snaphinge', 'inner'].includes(p.lid)) { p.lid = 'inner'; said.push('Inner hinged lid (hidden hinge)'); }
         p.lock = wantLock; said.push(wantLock === 'clasp' ? 'Snap clasp on the front' : wantLock === 'hidden' ? 'Hidden snap clasp inside the box' : 'Padlock tab');
       }
+      if (P.flag('f:sidelock')) { p.stack = true; p.sideLock = true; if (p.lid && p.lid !== 'none') { p.lid = 'none'; p.lock = 'none'; } said.push('Side locks that click stacked boxes together'); }
+      if (P.flag('f:gfin')) { p.gfInside = true; said.push('Gridfinity grid on the floor inside'); }
       if (P.flag('f:stack') != null) { p.stack = P.flag('f:stack'); if (p.stack) said.push('Stacking foot'); }
     } else {
       if (P.flag('f:lip') === false) { p.lip = false; said.push('No stacking lip'); }
@@ -3750,7 +3780,7 @@ const ASK_WORDS = [
   ['cup', 'spun shape'], ['bowl', 'spun shape'], ['vase', 'spun shape'], ['knob', 'spun shape'],
   ['compartments', 'e.g. 3 x 2 compartments'], ['dividers', 'e.g. 2 dividers'], ['walls', 'e.g. 2 mm walls'], ['floor', 'e.g. floor 1.5 mm'], ['corners', 'e.g. corners 5 mm'],
   ['hinged lid', 'lid on a hinge'], ['inner hinged lid', 'hidden hinge'], ['clasp', 'front snap lock'], ['inner clasp', 'hidden snap lock'], ['padlock tab', 'hole for a lock'], ['snap hinged lid', 'pegs click in'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
-  ['label shelf', 'spot for a label'], ['label', 'add text after it'], ['stackable', 'stacking foot'], ['magnets', 'Gridfinity magnet holes'], ['engraved', 'text cut in'], ['raised', 'text sticks out'],
+  ['label shelf', 'spot for a label'], ['label', 'add text after it'], ['stackable', 'stacking foot'], ['side locks', 'stack clicks together'], ['gridfinity inside', 'grid on the floor'], ['magnets', 'Gridfinity magnet holes'], ['engraved', 'text cut in'], ['raised', 'text sticks out'],
   ['text', 'then your words'], ['hole', 'e.g. 4 mm hole'], ['screw holes', 'mounting holes'], ['no screw holes', 'glue instead'], ['knuckles', 'e.g. 5 knuckles'],
   ['wide', 'e.g. 50 mm wide'], ['tall', 'e.g. 40 mm tall'], ['deep', 'e.g. 30 mm deep'], ['thick', 'e.g. 3 mm thick'], ['diameter', 'e.g. diameter 60 mm'], ['mm', 'millimetres'], ['cm', 'centimetres'], ['inch', '25.4 mm'],
 ];

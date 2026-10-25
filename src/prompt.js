@@ -66,6 +66,8 @@ const KW = [
   ['finger notch|notch', 'f:notch'],
   ['handle|handles|handle slots|grips', 'f:handles'],
   ['label shelf|labels|label', 'f:label'],
+  ['gridfinity inside|gridfinity in the box|gridfinity grid|gridfinity floor|gridfinity baseplate inside|inside gridfinity|gridfinity inner|inner gridfinity|gridfinity base inside', 'f:gfin'],
+  ['side lock|side locks|side clasp|side clasps|side latch|side latches|side clips|locking stack|stack lock|stackable lock|side snap|side lock stack', 'f:sidelock'],
   ['stackable|stacking|stack|stacks', 'f:stack'],
   ['magnets|magnet|magnet holes', 'f:magnets'],
   ['stacking lip|lip', 'f:lip'],
@@ -253,6 +255,8 @@ function planPrompt(src) {
         if (wantLock === 'hidden' ? p.lid !== 'inner' : !['hinge', 'snaphinge', 'inner'].includes(p.lid)) { p.lid = 'inner'; said.push('Inner hinged lid (hidden hinge)'); }
         p.lock = wantLock; said.push(wantLock === 'clasp' ? 'Snap clasp on the front' : wantLock === 'hidden' ? 'Hidden snap clasp inside the box' : 'Padlock tab');
       }
+      if (P.flag('f:sidelock')) { p.stack = true; p.sideLock = true; if (p.lid && p.lid !== 'none') { p.lid = 'none'; p.lock = 'none'; } said.push('Side locks that click stacked boxes together'); }
+      if (P.flag('f:gfin')) { p.gfInside = true; said.push('Gridfinity grid on the floor inside'); }
       if (P.flag('f:stack') != null) { p.stack = P.flag('f:stack'); if (p.stack) said.push('Stacking foot'); }
     } else {
       if (P.flag('f:lip') === false) { p.lip = false; said.push('No stacking lip'); }
@@ -460,7 +464,7 @@ const ASK_WORDS = [
   ['cup', 'spun shape'], ['bowl', 'spun shape'], ['vase', 'spun shape'], ['knob', 'spun shape'],
   ['compartments', 'e.g. 3 x 2 compartments'], ['dividers', 'e.g. 2 dividers'], ['walls', 'e.g. 2 mm walls'], ['floor', 'e.g. floor 1.5 mm'], ['corners', 'e.g. corners 5 mm'],
   ['hinged lid', 'lid on a hinge'], ['inner hinged lid', 'hidden hinge'], ['clasp', 'front snap lock'], ['inner clasp', 'hidden snap lock'], ['padlock tab', 'hole for a lock'], ['snap hinged lid', 'pegs click in'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
-  ['label shelf', 'spot for a label'], ['label', 'add text after it'], ['stackable', 'stacking foot'], ['magnets', 'Gridfinity magnet holes'], ['engraved', 'text cut in'], ['raised', 'text sticks out'],
+  ['label shelf', 'spot for a label'], ['label', 'add text after it'], ['stackable', 'stacking foot'], ['side locks', 'stack clicks together'], ['gridfinity inside', 'grid on the floor'], ['magnets', 'Gridfinity magnet holes'], ['engraved', 'text cut in'], ['raised', 'text sticks out'],
   ['text', 'then your words'], ['hole', 'e.g. 4 mm hole'], ['screw holes', 'mounting holes'], ['no screw holes', 'glue instead'], ['knuckles', 'e.g. 5 knuckles'],
   ['wide', 'e.g. 50 mm wide'], ['tall', 'e.g. 40 mm tall'], ['deep', 'e.g. 30 mm deep'], ['thick', 'e.g. 3 mm thick'], ['diameter', 'e.g. diameter 60 mm'], ['mm', 'millimetres'], ['cm', 'centimetres'], ['inch', '25.4 mm'],
 ];

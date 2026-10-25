@@ -129,7 +129,7 @@ function buildStorage(p, outer) {
     }
 
     // Compartments
-    const cols = clamp(Math.round(p.cols), 1, 20), rows = clamp(Math.round(p.rows), 1, 20);
+    const cols = p.gfInside ? 1 : clamp(Math.round(p.cols), 1, 20), rows = p.gfInside ? 1 : clamp(Math.round(p.rows), 1, 20);
     const divT = clamp(p.divT, 0.4, 5);
     const divTop = floorZ + (d.top - floorZ) * clamp(p.divH, 10, 100) / 100;
     for (let i = 1; i < cols; i++) { const x = -iW / 2 + (i * iW) / cols; adds.push(slab(k, x - divT / 2, x + divT / 2, -iD / 2 - 0.1, iD / 2 + 0.1, floorZ - 0.1, divTop)); }
@@ -212,6 +212,11 @@ function buildStorage(p, outer) {
         adds.push(k(MF.hull([cylX(k, Math.min(xw, s * (iW / 2 - 1.7)), Math.max(xw, s * (iW / 2 - 1.7)), il.ya, il.za, il.pr), cylX(k, Math.min(xt, s * (iW / 2 - 1.7)), Math.max(xt, s * (iW / 2 - 1.7)), il.ya, il.za, il.pr - 0.5)])));
       }
     }
+    if (!g && p.gfInside) {
+      const gx = Math.floor(iW / 42), gy = Math.floor(iD / 42);
+      if (gx >= 1 && gy >= 1) adds.push(k(gfPlate(k, gx, gy).translate([0, 0, floorZ - 0.01])));
+    }
+    if (sideLockOK(p, d)) adds.push(...sideLockParts(k, d, p));
     if (!g) { const lk = lockParts(k, d, p); adds.push(...lk.boxAdd); cuts2.push(...lk.boxCut); }
     let body = k(unionAll(k, solids).subtract(unionAll(k, cuts)));
     if (adds.length) body = k(MF.union([body, ...adds]));
@@ -219,6 +224,25 @@ function buildStorage(p, outer) {
     return outer ? body : manifoldToGeom(body);
   };
   return outer ? run(outer) : withScope(run);
+}
+// Side lock for stacked boxes: every box gets a bump low on each side wall and a springy arm that rises past its own top rim.
+// The arm of the box below clicks over the bump of the box above, so identical boxes lock together.
+const sideLockOK = (p, d) => !d.g && p.stack && p.sideLock && (!p.lid || p.lid === 'none') && d.H >= 20 && d.D - 2 * d.R - 2 >= 4;
+function sideLockParts(k, d, p) {
+  const { W, D, H, footH } = d, g = clamp(p.tol, 0.1, 1), bd = 0.9, at = 1.4, aw = clamp(Math.min(D / 3, D - 2 * d.R - 2), 4, 14);
+  const bz0 = footH + 1, ua = bd + g, ub = bd - 0.7, up = ua + at, off = H - footH;
+  const zbb = (u) => bz0 + bd + 1 + (bd - u) + 0.2 + off;
+  const bump = [[-0.3, bz0], [bd, bz0 + bd], [bd, bz0 + bd + 1], [-0.3, bz0 + bd + 1 + bd + 0.3]];
+  const zc = zbb(ub) + 0.8, barb = [[ua + 0.01, zbb(ua)], [ub, zbb(ub)], [ub, zc], [ua + 0.01, zc + (ua + 0.01 - ub) * 1.2]];
+  const za = H - 8, zt = barb[3][1], out = [];
+  const place = (m, s) => k(k(m.rotate([0, 0, -90 * s])).translate([s * W / 2, 0, 0]));
+  for (const s of [-1, 1]) {
+    out.push(place(prismX(k, bump, -aw / 2 - 0.5, aw + 1), s));
+    out.push(place(prismX(k, [[ua, za], [up, za], [up, zt], [ua, zt]], -aw / 2, aw), s));
+    out.push(place(prismX(k, [[-0.01, za], [up, za], [up, za + 2.2], [-0.01, za + 2.2]], -aw / 2, aw), s));
+    out.push(place(prismX(k, barb, -aw / 2, aw), s));
+  }
+  return out;
 }
 const SNAP_PEG = 1.7;
 const snapSock = (hk) => Math.min(2.4, (hk.segs[0][1] - hk.segs[0][0]) - 1.2);
@@ -337,25 +361,26 @@ function buildLid(p) {
     return manifoldToGeom(lid);
   });
 }
+// A Gridfinity baseplate of gx x gy cells, centred on the origin, sitting on z = 0.
+function gfPlate(k, gx, gy) {
+  const W = 42 * gx, D = 42 * gy, Hp = 4.65;
+  const plate = rrPrism(k, W, D, 4, 0, Hp);
+  const cav = [];
+  const sl = (inset, r, z) => [42 - 2 * inset, 42 - 2 * inset, r, z];
+  for (let i = 0; i < gx; i++) for (let j = 0; j < gy; j++) {
+    const cx = -(gx - 1) * 21 + 42 * i, cy = -(gy - 1) * 21 + 42 * j;
+    cav.push(hullSlices(k, [sl(2.85, 1.15, -1), sl(2.85, 1.15, 0.7 - 0.7)], cx, cy));
+    cav.push(hullSlices(k, [sl(2.85, 1.15, 0), sl(2.15, 1.85, 0.7), sl(2.15, 1.85, 2.5)], cx, cy));
+    cav.push(hullSlices(k, [sl(2.15, 1.85, 2.5), sl(0, 4, Hp), sl(-0.3, 4.3, Hp + 0.3)], cx, cy));
+  }
+  return k(plate.subtract(unionAll(k, cav)));
+}
 function buildBaseplate(p) {
-  return withScope((k) => {
-    const gx = clamp(Math.round(p.gx), 1, 12), gy = clamp(Math.round(p.gy), 1, 12);
-    const W = 42 * gx, D = 42 * gy, Hp = 4.65;
-    const plate = rrPrism(k, W, D, 4, 0, Hp);
-    const cav = [];
-    const sl = (inset, r, z) => [42 - 2 * inset, 42 - 2 * inset, r, z];
-    for (let i = 0; i < gx; i++) for (let j = 0; j < gy; j++) {
-      const cx = -(gx - 1) * 21 + 42 * i, cy = -(gy - 1) * 21 + 42 * j;
-      cav.push(hullSlices(k, [sl(2.85, 1.15, -1), sl(2.85, 1.15, 0.7 - 0.7)], cx, cy));
-      cav.push(hullSlices(k, [sl(2.85, 1.15, 0), sl(2.15, 1.85, 0.7), sl(2.15, 1.85, 2.5)], cx, cy));
-      cav.push(hullSlices(k, [sl(2.15, 1.85, 2.5), sl(0, 4, Hp), sl(-0.3, 4.3, Hp + 0.3)], cx, cy));
-    }
-    return manifoldToGeom(k(plate.subtract(unionAll(k, cav))));
-  });
+  return withScope((k) => manifoldToGeom(gfPlate(k, clamp(Math.round(p.gx), 1, 12), clamp(Math.round(p.gy), 1, 12))));
 }
 
 const MAKER_DEFAULTS = {
-  storage: { style: 'plain', w: 80, d: 60, h: 40, wall: 1.6, floor: 1.2, radius: 4, soften: 1, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: false, scoopR: 12, notch: false, handles: false, label: 'none', labelText: 'SCREWS', lid: 'none', lock: 'none', lidT: 2, tol: 0.3, stack: false },
+  storage: { style: 'plain', w: 80, d: 60, h: 40, wall: 1.6, floor: 1.2, radius: 4, soften: 1, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: false, scoopR: 12, notch: false, handles: false, label: 'none', labelText: 'SCREWS', lid: 'none', lock: 'none', lidT: 2, tol: 0.3, stack: false, sideLock: false, gfInside: false },
   gridfinity: { style: 'gridfinity', gx: 2, gy: 1, gz: 6, wall: 1.2, floor: 1.2, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: true, scoopR: 12, notch: false, handles: false, label: 'shelf', labelText: 'BITS', lip: true, magnets: false, tol: 0.3 },
   gfplate: { gx: 3, gy: 3 },
 };
