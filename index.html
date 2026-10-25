@@ -8,6 +8,7 @@
 <body>
 <title>Shape Workshop</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="account-url" content="https://pb.jpzl.dev">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
@@ -205,6 +206,20 @@ kbd.k { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--
 .ask-btn svg { width: 18px; height: 18px; color: var(--accent); flex: 0 0 auto; }
 .ask-btn:hover { border-style: solid; }
 .dialog.ask { max-width: 640px; }
+.dialog.acct { max-width: 440px; }
+.acct-form { display: flex; flex-direction: column; gap: 10px; }
+.acct-form .field input { font-family: var(--font-body); font-size: 14px; padding: 8px 9px; }
+.acct-label { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.acct-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.acct-list li { display: grid; grid-template-columns: minmax(0,1fr) auto auto; grid-template-areas: "n o d" "w o d"; align-items: center; column-gap: 6px; padding: 8px 10px; background: var(--panel-2); border-radius: 8px; }
+.acct-list li.help { display: block; background: none; padding: 4px 0; }
+.acct-list li.cur { outline: 2px solid var(--sel); outline-offset: -2px; }
+.acct-list .acct-name { grid-area: n; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-list li > .help { grid-area: w; font-size: 12px; }
+.acct-list li > .btn:nth-of-type(1) { grid-area: o; }
+.acct-list li > .btn:nth-of-type(2) { grid-area: d; }
+.acct-msg { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+.acct-msg.bad { color: var(--bad); }
 #askInput { width: 100%; border: 1.5px solid var(--line); background: var(--panel-2); border-radius: 10px; padding: 11px 12px; font: inherit; font-size: 15px; color: var(--ink); margin-top: 6px; }
 #askInput:focus { outline: none; border-color: var(--sel); background: var(--panel); }
 .ask-sug { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; min-height: 30px; }
@@ -284,6 +299,7 @@ kbd.k { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--
     <button class="btn small" id="btnNew" title="Start a new, empty design">New</button>
     <button class="btn small hide-narrow" id="btnOpen" title="Open a design file you saved earlier">Open</button>
     <button class="btn small hide-narrow" id="btnSave" title="Save this design as a file you can open again later">Save</button>
+    <button class="btn small" id="btnAccount" title="Log in to save designs to your account and open them on any device" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="acct-label hide-narrow" id="btnAccountLabel">Log in</span></button>
     <button class="btn small ghost" id="btnHelp" title="Keyboard shortcuts and tips">?</button>
     <button class="btn small" id="btnCheck" title="Check the design before printing: size, overhangs, thin walls, print time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10"/></svg>Print check</button>
     <button class="btn primary" id="btnExport" title="Download an STL file for your slicer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>Export STL</button>
@@ -437,6 +453,25 @@ kbd.k { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--
     <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn primary" id="askBuild" disabled>Make it</button></div>
     <h2 class="ask-h">Examples</h2>
     <div class="ask-exs" id="askEx"></div>
+  </div>
+</div>
+<div class="overlay" id="accountOverlay" hidden>
+  <div class="dialog acct" role="dialog" aria-labelledby="acctTitle">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 id="acctTitle" style="margin:0">Log in</h3><button class="btn small ghost" id="acctClose">Close</button></div>
+    <form id="acctOut" class="acct-form">
+      <p class="help">Log in to save designs to your account and open them on any device. You can keep using Shape Workshop without one.</p>
+      <div class="field" id="acctNameRow" hidden><label for="acctName">Your name (optional)</label><input id="acctName" type="text" autocomplete="name"></div>
+      <div class="field"><label for="acctEmail">Email</label><input id="acctEmail" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="acctPass">Password</label><input id="acctPass" type="password" autocomplete="current-password" required></div>
+      <div class="row" style="margin-top:4px"><button class="btn primary" id="acctGo" type="submit">Log in</button><span class="spacer"></span><button class="btn small ghost" id="acctForgot" type="button">Forgot password?</button><button class="btn small ghost" id="acctSwitch" type="button">Create an account</button></div>
+    </form>
+    <div id="acctIn" hidden>
+      <div class="row"><span class="help">Logged in as <b id="acctWho"></b></span><span class="spacer"></span><button class="btn small ghost" id="acctLogout">Log out</button></div>
+      <button class="btn primary big" id="acctSave" style="margin:12px 0 4px">Save to my account</button>
+      <h2 class="ask-h">My designs</h2>
+      <ul class="acct-list" id="acctList"></ul>
+    </div>
+    <p class="acct-msg" id="acctMsg" hidden aria-live="polite"></p>
   </div>
 </div>
 <div class="toast" id="toast" hidden role="status"></div>
@@ -1491,7 +1526,7 @@ function undo() { if (history.index > 0) restore(history.index - 1); }
 function redo() { if (history.index < history.stack.length - 1) restore(history.index + 1); }
 let warnedFull = false;
 function persist() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ name: doc.name, objects: doc.objects, example: isExample })); }
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ name: doc.name, objects: doc.objects, example: isExample, cloudId: doc.cloudId || null })); }
   catch (e) {
     // Usually a design with big pictures is over the browser's storage limit.
     if (!warnedFull && e && e.name === 'QuotaExceededError') { warnedFull = true; toast('This design is too big to keep in the browser. Use Save to keep a copy as a file.'); }
@@ -1885,7 +1920,7 @@ function clearExample() {
   isExample = false;
 }
 function newDesign() {
-  doc.objects = []; doc.name = 'My design'; $('projectName').value = doc.name; isExample = false;
+  doc.objects = []; doc.name = 'My design'; $('projectName').value = doc.name; isExample = false; doc.cloudId = null;
   select([]); commit();
   toast('Started a new design. Press Undo to bring the old one back.');
 }
@@ -2016,7 +2051,7 @@ function loadProject(text) {
   try {
     const d = JSON.parse(text);
     if (!Array.isArray(d.objects)) throw new Error('bad');
-    doc.objects = d.objects; doc.name = d.name || 'My design'; $('projectName').value = doc.name; isExample = false;
+    doc.objects = d.objects; doc.name = d.name || 'My design'; $('projectName').value = doc.name; isExample = false; doc.cloudId = null;
     select([]); commit(); setView('fit');
     toast('Opened ' + doc.name + '.');
   } catch (e) { toast('That file is not a Shape Workshop design.'); }
@@ -2560,7 +2595,7 @@ window.addEventListener('keydown', (e) => {
     case 'ArrowDown': e.preventDefault(); nudge(0, 0, step); break;
     case 'PageUp': e.preventDefault(); nudge(0, step, 0); break;
     case 'PageDown': e.preventDefault(); nudge(0, -step, 0); break;
-    case 'Escape': if (!$('helpOverlay').hidden || !$('checkOverlay').hidden || !$('picOverlay').hidden || !$('askOverlay').hidden) { $('helpOverlay').hidden = true; $('checkOverlay').hidden = true; $('askOverlay').hidden = true; picClose(); } else select([]); break;
+    case 'Escape': if (!$('helpOverlay').hidden || !$('checkOverlay').hidden || !$('picOverlay').hidden || !$('askOverlay').hidden || !$('accountOverlay').hidden) { $('helpOverlay').hidden = true; $('checkOverlay').hidden = true; $('askOverlay').hidden = true; $('accountOverlay').hidden = true; picClose(); } else select([]); break;
     default:
       if (k === 'm') setMode('translate');
       else if (k === 'r') setMode('rotate');
@@ -3881,6 +3916,151 @@ $('askOverlay').onclick = (e) => { if (e.target === $('askOverlay')) askClose();
 $('askInput').oninput = () => { clearTimeout(askTimer); askTimer = setTimeout(askUpdate, 120); };
 $('askInput').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); askBuild(); } else if (e.key === 'Escape') askClose(); };
 $('askBuild').onclick = askBuild;
+// ---------- account (PocketBase on Coolify) ----------
+// Optional sign-in. The server address comes from <meta name="account-url">; without it the Account button stays hidden.
+// Designs saved to an account go to the "designs" collection (see pocketbase/collections.json). Signed out, nothing leaves the browser.
+const ACCT_KEY = 'sw-account';
+const acctUrl = ((document.querySelector('meta[name="account-url"]') || {}).content || '').replace(/\/+$/, '');
+let acct = null; // { token, user }
+let acctMode = 'login';
+try { acct = JSON.parse(localStorage.getItem(ACCT_KEY) || 'null'); } catch (e) { acct = null; }
+function acctStore() {
+  try { if (acct) localStorage.setItem(ACCT_KEY, JSON.stringify(acct)); else localStorage.removeItem(ACCT_KEY); } catch (e) { /* storage blocked */ }
+}
+async function pb(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (acct && acct.token) headers.Authorization = acct.token;
+  let r;
+  try { r = await fetch(acctUrl + path, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined }); }
+  catch (e) { throw new Error('Could not reach the account server. Check your connection and try again.'); }
+  const data = r.status === 204 ? null : await r.json().catch(() => null);
+  if (!r.ok) {
+    if (r.status === 401 && acct) { acct = null; acctStore(); acctRender(); }
+    const field = data && data.data && Object.values(data.data)[0];
+    const err = new Error((field && field.message) || (data && data.message) || 'Something went wrong (' + r.status + ').');
+    err.status = r.status;
+    throw err;
+  }
+  return data;
+}
+function acctSignedIn(d) { acct = { token: d.token, user: { id: d.record.id, email: d.record.email, name: d.record.name || '' } }; acctStore(); acctRender(); }
+function acctLabel() { return acct ? (acct.user.name || acct.user.email) : 'Log in'; }
+function acctRender() {
+  $('btnAccount').hidden = !acctUrl || inViewer;
+  $('btnAccountLabel').textContent = acctLabel();
+  if ($('accountOverlay').hidden) return;
+  $('acctOut').hidden = !!acct; $('acctIn').hidden = !acct;
+  if (acct) {
+    $('acctWho').textContent = acct.user.email;
+    $('acctSave').textContent = doc.cloudId ? 'Save changes to my account' : 'Save to my account';
+    acctList();
+  } else {
+    const signup = acctMode === 'signup';
+    $('acctTitle').textContent = signup ? 'Create an account' : 'Log in';
+    $('acctNameRow').hidden = !signup;
+    $('acctPass').autocomplete = signup ? 'new-password' : 'current-password';
+    $('acctGo').textContent = signup ? 'Create account' : 'Log in';
+    $('acctSwitch').textContent = signup ? 'I already have an account' : 'Create an account';
+    $('acctForgot').hidden = signup;
+  }
+}
+function acctMsg(t, bad) { const m = $('acctMsg'); m.textContent = t || ''; m.hidden = !t; m.classList.toggle('bad', !!bad); }
+function acctOpen() {
+  $('accountOverlay').hidden = false; acctMsg('');
+  if (acct) { $('acctTitle').textContent = 'Your account'; acctRender(); $('acctSave').focus(); }
+  else { acctRender(); $('acctEmail').focus(); }
+}
+function acctClose() { $('accountOverlay').hidden = true; }
+async function acctSubmit(e) {
+  e.preventDefault();
+  const email = $('acctEmail').value.trim(), password = $('acctPass').value;
+  if (!email || !password) { acctMsg('Type your email and a password.', true); return; }
+  $('acctGo').disabled = true; acctMsg(acctMode === 'signup' ? 'Creating your account…' : 'Logging in…');
+  try {
+    if (acctMode === 'signup') {
+      if (password.length < 8) throw new Error('Use a password with at least 8 characters.');
+      await pb('/api/collections/users/records', { method: 'POST', body: { email, password, passwordConfirm: password, name: $('acctName').value.trim() } });
+    }
+    acctSignedIn(await pb('/api/collections/users/auth-with-password', { method: 'POST', body: { identity: email, password } }));
+    $('acctPass').value = '';
+    $('acctTitle').textContent = 'Your account'; acctMsg(''); acctRender();
+    toast('Logged in as ' + acct.user.email + '.');
+  } catch (err) {
+    const msg = acctMode === 'login' ? (err.status === 400 ? 'That email and password do not match an account.' : err.message)
+      : /unique/i.test(err.message) ? 'That email already has an account. Log in instead.' : err.message;
+    acctMsg(msg, true);
+  } finally { $('acctGo').disabled = false; }
+}
+async function acctForgot() {
+  const email = $('acctEmail').value.trim();
+  if (!email) { acctMsg('Type your email first, then press this again.', true); $('acctEmail').focus(); return; }
+  try { await pb('/api/collections/users/request-password-reset', { method: 'POST', body: { email } }); acctMsg('If that email has an account, a reset link is on its way.'); }
+  catch (err) { acctMsg(err.message, true); }
+}
+function acctLogout() { acct = null; acctStore(); doc.cloudId = null; persist(); acctMode = 'login'; acctRender(); acctClose(); toast('Logged out.'); }
+async function acctList() {
+  const list = $('acctList');
+  list.innerHTML = '<li class="help">Loading your designs…</li>';
+  let res;
+  try { res = await pb('/api/collections/designs/records?sort=-updated&perPage=200&fields=id,name,updated'); }
+  catch (err) { list.innerHTML = ''; acctMsg(err.message, true); return; }
+  list.innerHTML = '';
+  if (!res.items.length) { list.innerHTML = '<li class="help">Nothing saved yet. Your saved designs show up here, on any device you log in from.</li>'; return; }
+  for (const it of res.items) {
+    const li = document.createElement('li');
+    const when = new Date(it.updated.replace(' ', 'T')).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    li.innerHTML = '<span class="acct-name"></span><span class="help"></span><button class="btn small">Open</button><button class="btn small ghost" aria-label="Delete">Delete</button>';
+    li.children[0].textContent = it.name; li.children[1].textContent = when;
+    if (it.id === doc.cloudId) li.classList.add('cur');
+    li.children[2].onclick = () => acctLoad(it.id);
+    li.children[3].onclick = () => acctDelete(it);
+    list.appendChild(li);
+  }
+}
+async function acctSave() {
+  if (!acct) { acctOpen(); return; }
+  const body = { name: doc.name, data: { app: 'shape-workshop', version: 1, name: doc.name, objects: doc.objects } };
+  $('acctSave').disabled = true;
+  try {
+    let rec;
+    if (doc.cloudId) {
+      try { rec = await pb('/api/collections/designs/records/' + doc.cloudId, { method: 'PATCH', body }); }
+      catch (err) { if (err.status !== 404) throw err; }
+    }
+    if (!rec) rec = await pb('/api/collections/designs/records', { method: 'POST', body: { ...body, owner: acct.user.id } });
+    doc.cloudId = rec.id; persist();
+    toast('Saved ' + doc.name + ' to your account.');
+    acctRender();
+  } catch (err) { acctMsg(err.message, true); toast(err.message); }
+  finally { $('acctSave').disabled = false; }
+}
+async function acctLoad(id) {
+  try {
+    const rec = await pb('/api/collections/designs/records/' + id);
+    loadProject(JSON.stringify(rec.data || {}));
+    doc.cloudId = rec.id; persist();
+    acctClose();
+  } catch (err) { acctMsg(err.message, true); }
+}
+async function acctDelete(it) {
+  if (!confirm('Delete "' + it.name + '" from your account? This cannot be undone.')) return;
+  try {
+    await pb('/api/collections/designs/records/' + it.id, { method: 'DELETE' });
+    if (doc.cloudId === it.id) { doc.cloudId = null; persist(); }
+    acctRender();
+  } catch (err) { acctMsg(err.message, true); }
+}
+$('btnAccount').onclick = acctOpen;
+$('acctClose').onclick = acctClose;
+$('accountOverlay').onclick = (e) => { if (e.target === $('accountOverlay')) acctClose(); };
+$('acctOut').onsubmit = acctSubmit;
+$('acctSwitch').onclick = () => { acctMode = acctMode === 'signup' ? 'login' : 'signup'; acctMsg(''); acctRender(); };
+$('acctForgot').onclick = acctForgot;
+$('acctSave').onclick = acctSave;
+$('acctLogout').onclick = acctLogout;
+acctRender();
+// Check the saved sign-in is still good (and get a fresh token).
+if (acct && acctUrl && !inViewer) pb('/api/collections/users/auth-refresh', { method: 'POST' }).then(acctSignedIn).catch(() => { /* 401 already signs out; offline keeps the old token */ });
 // ---------- example & boot ----------
 function exampleDesign() {
   const tag = { id: newId(), type: 'rbox', hole: false, color: '#2f6fdb', pos: [0, 2, 0], rot: [0, 0, 0], size: [56, 4, 20] };
@@ -3902,7 +4082,7 @@ function boot() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) { saved = null; }
   if (saved && Array.isArray(saved.objects) && (saved.objects.length || !saved.example)) {
-    doc.objects = saved.objects; doc.name = saved.name || 'My design'; isExample = !!saved.example;
+    doc.objects = saved.objects; doc.name = saved.name || 'My design'; isExample = !!saved.example; doc.cloudId = saved.cloudId || null;
   } else {
     doc.objects = exampleDesign(); doc.name = 'Example keychain'; isExample = true;
   }

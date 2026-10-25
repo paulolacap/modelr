@@ -214,7 +214,7 @@ function undo() { if (history.index > 0) restore(history.index - 1); }
 function redo() { if (history.index < history.stack.length - 1) restore(history.index + 1); }
 let warnedFull = false;
 function persist() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ name: doc.name, objects: doc.objects, example: isExample })); }
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ name: doc.name, objects: doc.objects, example: isExample, cloudId: doc.cloudId || null })); }
   catch (e) {
     // Usually a design with big pictures is over the browser's storage limit.
     if (!warnedFull && e && e.name === 'QuotaExceededError') { warnedFull = true; toast('This design is too big to keep in the browser. Use Save to keep a copy as a file.'); }
@@ -608,7 +608,7 @@ function clearExample() {
   isExample = false;
 }
 function newDesign() {
-  doc.objects = []; doc.name = 'My design'; $('projectName').value = doc.name; isExample = false;
+  doc.objects = []; doc.name = 'My design'; $('projectName').value = doc.name; isExample = false; doc.cloudId = null;
   select([]); commit();
   toast('Started a new design. Press Undo to bring the old one back.');
 }
@@ -739,7 +739,7 @@ function loadProject(text) {
   try {
     const d = JSON.parse(text);
     if (!Array.isArray(d.objects)) throw new Error('bad');
-    doc.objects = d.objects; doc.name = d.name || 'My design'; $('projectName').value = doc.name; isExample = false;
+    doc.objects = d.objects; doc.name = d.name || 'My design'; $('projectName').value = doc.name; isExample = false; doc.cloudId = null;
     select([]); commit(); setView('fit');
     toast('Opened ' + doc.name + '.');
   } catch (e) { toast('That file is not a Shape Workshop design.'); }
@@ -1283,7 +1283,7 @@ window.addEventListener('keydown', (e) => {
     case 'ArrowDown': e.preventDefault(); nudge(0, 0, step); break;
     case 'PageUp': e.preventDefault(); nudge(0, step, 0); break;
     case 'PageDown': e.preventDefault(); nudge(0, -step, 0); break;
-    case 'Escape': if (!$('helpOverlay').hidden || !$('checkOverlay').hidden || !$('picOverlay').hidden || !$('askOverlay').hidden) { $('helpOverlay').hidden = true; $('checkOverlay').hidden = true; $('askOverlay').hidden = true; picClose(); } else select([]); break;
+    case 'Escape': if (!$('helpOverlay').hidden || !$('checkOverlay').hidden || !$('picOverlay').hidden || !$('askOverlay').hidden || !$('accountOverlay').hidden) { $('helpOverlay').hidden = true; $('checkOverlay').hidden = true; $('askOverlay').hidden = true; $('accountOverlay').hidden = true; picClose(); } else select([]); break;
     default:
       if (k === 'm') setMode('translate');
       else if (k === 'r') setMode('rotate');
@@ -1298,6 +1298,7 @@ window.addEventListener('keydown', (e) => {
 // @@EDITOR@@
 // @@PICTURE@@
 // @@PROMPT@@
+// @@ACCOUNT@@
 // ---------- example & boot ----------
 function exampleDesign() {
   const tag = { id: newId(), type: 'rbox', hole: false, color: '#2f6fdb', pos: [0, 2, 0], rot: [0, 0, 0], size: [56, 4, 20] };
@@ -1319,7 +1320,7 @@ function boot() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) { saved = null; }
   if (saved && Array.isArray(saved.objects) && (saved.objects.length || !saved.example)) {
-    doc.objects = saved.objects; doc.name = saved.name || 'My design'; isExample = !!saved.example;
+    doc.objects = saved.objects; doc.name = saved.name || 'My design'; isExample = !!saved.example; doc.cloudId = saved.cloudId || null;
   } else {
     doc.objects = exampleDesign(); doc.name = 'Example keychain'; isExample = true;
   }

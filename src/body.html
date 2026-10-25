@@ -19,6 +19,7 @@
     <button class="btn small" id="btnNew" title="Start a new, empty design">New</button>
     <button class="btn small hide-narrow" id="btnOpen" title="Open a design file you saved earlier">Open</button>
     <button class="btn small hide-narrow" id="btnSave" title="Save this design as a file you can open again later">Save</button>
+    <button class="btn small" id="btnAccount" title="Log in to save designs to your account and open them on any device" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="acct-label hide-narrow" id="btnAccountLabel">Log in</span></button>
     <button class="btn small ghost" id="btnHelp" title="Keyboard shortcuts and tips">?</button>
     <button class="btn small" id="btnCheck" title="Check the design before printing: size, overhangs, thin walls, print time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10"/></svg>Print check</button>
     <button class="btn primary" id="btnExport" title="Download an STL file for your slicer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>Export STL</button>
@@ -172,6 +173,25 @@
     <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn primary" id="askBuild" disabled>Make it</button></div>
     <h2 class="ask-h">Examples</h2>
     <div class="ask-exs" id="askEx"></div>
+  </div>
+</div>
+<div class="overlay" id="accountOverlay" hidden>
+  <div class="dialog acct" role="dialog" aria-labelledby="acctTitle">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 id="acctTitle" style="margin:0">Log in</h3><button class="btn small ghost" id="acctClose">Close</button></div>
+    <form id="acctOut" class="acct-form">
+      <p class="help">Log in to save designs to your account and open them on any device. You can keep using Shape Workshop without one.</p>
+      <div class="field" id="acctNameRow" hidden><label for="acctName">Your name (optional)</label><input id="acctName" type="text" autocomplete="name"></div>
+      <div class="field"><label for="acctEmail">Email</label><input id="acctEmail" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="acctPass">Password</label><input id="acctPass" type="password" autocomplete="current-password" required></div>
+      <div class="row" style="margin-top:4px"><button class="btn primary" id="acctGo" type="submit">Log in</button><span class="spacer"></span><button class="btn small ghost" id="acctForgot" type="button">Forgot password?</button><button class="btn small ghost" id="acctSwitch" type="button">Create an account</button></div>
+    </form>
+    <div id="acctIn" hidden>
+      <div class="row"><span class="help">Logged in as <b id="acctWho"></b></span><span class="spacer"></span><button class="btn small ghost" id="acctLogout">Log out</button></div>
+      <button class="btn primary big" id="acctSave" style="margin:12px 0 4px">Save to my account</button>
+      <h2 class="ask-h">My designs</h2>
+      <ul class="acct-list" id="acctList"></ul>
+    </div>
+    <p class="acct-msg" id="acctMsg" hidden aria-live="polite"></p>
   </div>
 </div>
 <div class="toast" id="toast" hidden role="status"></div>

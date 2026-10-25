@@ -1,7 +1,7 @@
 # Shape Workshop
 
 A beginner-friendly 3D modeler for making things to 3D print, in the spirit of Tinkercad.
-Everything runs in the browser; nothing is uploaded anywhere.
+Everything runs in the browser; nothing is uploaded unless you log in and save a design to your account.
 
 ## Use it
 Open `index.html` in Chrome, Edge, Firefox or Safari (it needs an internet
@@ -14,6 +14,7 @@ connection the first time to load Three.js). Export STL saves a `.stl` file dire
 - Solid / hole switch; Group cuts holes out and fuses solids (watertight, via Manifold)
 - Align, duplicate, drop to plate, 90° turns, undo/redo, autosave in the browser
 - Save / open designs as `.json` files
+- Optional login (self-hosted PocketBase): save designs to your account and open them on any device
 - STL export is Z-up, in mm, sitting on the plate
 - Storage makers: storage boxes (size, walls, rounded corners and bottom edge, dividers,
   finger scoops, finger notch, handle slots, label shelf or raised/engraved text,
@@ -37,7 +38,7 @@ connection the first time to load Three.js). Export STL saves a `.stl` file dire
 - Print check: printer bed size, floating parts, overhangs, thin walls, filament and time estimate
 
 ## Source
-`src/` holds the page pieces (`head.html`, `body.html`, `app.js`, `makers.js`, `editor.js`, `picture.js`, `hardware.js`, `joints.js`, `prompt.js`). `build.py` stitches them
+`src/` holds the page pieces (`head.html`, `body.html`, `app.js`, `makers.js`, `editor.js`, `picture.js`, `hardware.js`, `joints.js`, `prompt.js`, `account.js`). `build.py` stitches them
 together with the inlined font and the Manifold WASM binary (from the `manifold-3d@3.5.4` npm package).
 Libraries: three@0.186.1, manifold-3d@3.5.4 (loaded from jsDelivr).
 
@@ -47,7 +48,8 @@ one file, open it in a browser) and `dist/` (Artifact page and a local test page
 
 ## Deploy
 It is a single static file, `index.html`, so any static host works. `vercel.json` is included for Vercel
-(no build step). For Cloudflare Pages use: build command empty, output directory `/`.
+(no build step). It runs on Coolify at modelr.jpzl.dev. Login needs a PocketBase service on Coolify;
+see [`pocketbase/README.md`](pocketbase/README.md). For Cloudflare Pages use: build command empty, output directory `/`.
 
 `python3 build_site.py` also writes `dist/site.html`, a smaller website build (about 240 KB) that loads the Manifold WASM
 from the CDN instead of carrying it inline. `index.html` is the all-in-one version and works the same.
