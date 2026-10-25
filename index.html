@@ -568,8 +568,9 @@ function matrixOf(o) {
 // ---------- CSG ----------
 // Manifold does the cutting and joining. It always returns a closed, watertight mesh, which is
 // what slicers want, and it copes with faces that touch exactly.
-const wasmB64 = $('manifold-wasm').textContent.trim();
-const wasm = await Module({ wasmBinary: Uint8Array.from(atob(wasmB64), (c) => c.charCodeAt(0)) });
+// The Artifact and standalone builds carry the WASM inline; the website build leaves it out and loads it beside manifold.js on the CDN.
+const wasmEl = $('manifold-wasm');
+const wasm = await Module(wasmEl ? { wasmBinary: Uint8Array.from(atob(wasmEl.textContent.trim()), (c) => c.charCodeAt(0)) } : {});
 wasm.setup();
 function toManifold(g) {
   let p = new THREE.BufferGeometry();

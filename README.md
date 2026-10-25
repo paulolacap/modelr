@@ -48,3 +48,6 @@ one file, open it in a browser) and `dist/` (Artifact page and a local test page
 ## Deploy
 It is a single static file, `index.html`, so any static host works. `vercel.json` is included for Vercel
 (no build step). For Cloudflare Pages use: build command empty, output directory `/`.
+
+`python3 build_site.py` also writes `dist/site.html`, a smaller website build (about 240 KB) that loads the Manifold WASM
+from the CDN instead of carrying it inline. `index.html` is the all-in-one version and works the same.
