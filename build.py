@@ -1,6 +1,6 @@
 import json, base64
 d = 'src/'
-head = open(d + 'head.html').read(); body = open(d + 'body.html').read(); js = open(d + 'app.js').read().replace('// @@MAKERS@@\n', open(d + 'makers.js').read()).replace('// @@HARDWARE@@\n', open(d + 'hardware.js').read()).replace('// @@JOINTS@@\n', open(d + 'joints.js').read()).replace('// @@EDITOR@@\n', open(d + 'editor.js').read()).replace('// @@PICTURE@@\n', open(d + 'picture.js').read()).replace('// @@PROMPT@@\n', open(d + 'prompt.js').read()).replace('// @@ACCOUNT@@\n', open(d + 'account.js').read())
+head = open(d + 'head.html').read(); body = open(d + 'body.html').read(); js = open(d + 'app.js').read().replace('// @@MAKERS@@\n', open(d + 'makers.js').read()).replace('// @@HARDWARE@@\n', open(d + 'hardware.js').read()).replace('// @@JOINTS@@\n', open(d + 'joints.js').read()).replace('// @@SKADIS@@\n', open(d + 'skadis.js').read()).replace('// @@EDITOR@@\n', open(d + 'editor.js').read()).replace('// @@PICTURE@@\n', open(d + 'picture.js').read()).replace('// @@PROMPT@@\n', open(d + 'prompt.js').read()).replace('// @@ACCOUNT@@\n', open(d + 'account.js').read())
 font = json.dumps(json.load(open('src/helvetiker_bold.typeface.json')), separators=(',', ':'))
 wasm = base64.b64encode(open('node_modules/manifold-3d/manifold.wasm', 'rb').read()).decode()
 def imap(three, manifold):

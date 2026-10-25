@@ -31,6 +31,9 @@ connection the first time to load Three.js). Export STL saves a `.stl` file dire
   padlock hasp, magnet catch and turn button. Each has screw holes (optionally countersunk) and a fit gap
 - Joints: dovetail, tongue and groove, T-slot, puzzle, finger joint, pegs and holes, snap tabs.
   Each is a matching pair of blocks, printed flat side by side, with an adjustable fit gap
+- IKEA Skådis pegboard: hooks, big U hooks, shelves, tool holders, bins, round cups, a printable
+  Skådis-style pegboard tile and a fit test peg. Pegs match the 5 × 15 mm slots, 40 mm apart, on a 5 mm board,
+  with an adjustable fit gap. Hooks print on their side with no supports; shelves, bins and cups print standing up
 - Type what you want: a no-AI keyword box ("box 120 x 80 x 50 mm, 3 x 2 compartments, hinged lid").
   It suggests words as you type and shows what it understood and what it skipped
 - Box locks and an inner hinge: a hidden hinge (pegs and sockets inside the box, so the outside stays a clean
@@ -38,7 +41,7 @@ connection the first time to load Three.js). Export STL saves a `.stl` file dire
 - Print check: printer bed size, floating parts, overhangs, thin walls, filament and time estimate
 
 ## Source
-`src/` holds the page pieces (`head.html`, `body.html`, `app.js`, `makers.js`, `editor.js`, `picture.js`, `hardware.js`, `joints.js`, `prompt.js`, `account.js`). `build.py` stitches them
+`src/` holds the page pieces (`head.html`, `body.html`, `app.js`, `makers.js`, `editor.js`, `picture.js`, `hardware.js`, `joints.js`, `skadis.js`, `prompt.js`, `account.js`). `build.py` stitches them
 together with the inlined font and the Manifold WASM binary (from the `manifold-3d@3.5.4` npm package).
 Libraries: three@0.186.1, manifold-3d@3.5.4 (loaded from jsDelivr).
 
