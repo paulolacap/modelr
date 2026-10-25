@@ -93,8 +93,8 @@ function storageDims(p) {
   return { g, W, D, H, wall, R, iW, iD, iR, footH, baseTop, floorZ, slide, gd, gz0, gz1, top };
 }
 
-function buildStorage(p) {
-  return withScope((k) => {
+function buildStorage(p, outer) {
+  const run = (k) => {
     const d = storageDims(p);
     const { g, W, D, H, wall, R, iW, iD, iR, footH, floorZ } = d;
     const solids = [], cuts = [], adds = [], cuts2 = [];
@@ -205,14 +205,52 @@ function buildStorage(p) {
       }
     }
 
+    if (!g && p.lid === 'inner' && !p.noPegs) {
+      const il = innerLayout(d, p);
+      for (const s of [-1, 1]) {
+        const xw = s * (iW / 2 + 0.3), xt = s * (iW / 2 - 2.2);
+        adds.push(k(MF.hull([cylX(k, Math.min(xw, s * (iW / 2 - 1.7)), Math.max(xw, s * (iW / 2 - 1.7)), il.ya, il.za, il.pr), cylX(k, Math.min(xt, s * (iW / 2 - 1.7)), Math.max(xt, s * (iW / 2 - 1.7)), il.ya, il.za, il.pr - 0.5)])));
+      }
+    }
+    if (!g) { const lk = lockParts(k, d, p); adds.push(...lk.boxAdd); cuts2.push(...lk.boxCut); }
     let body = k(unionAll(k, solids).subtract(unionAll(k, cuts)));
     if (adds.length) body = k(MF.union([body, ...adds]));
     if (cuts2.length) body = k(body.subtract(unionAll(k, cuts2)));
-    return manifoldToGeom(body);
-  });
+    return outer ? body : manifoldToGeom(body);
+  };
+  return outer ? run(outer) : withScope(run);
 }
 const SNAP_PEG = 1.7;
 const snapSock = (hk) => Math.min(2.4, (hk.segs[0][1] - hk.segs[0][0]) - 1.2);
+
+const HINGED = (lid) => lid === 'hinge' || lid === 'snaphinge' || lid === 'inner';
+// Inner hinge: round pegs on the box's side walls, inside; ears under the lid with sockets. Nothing sticks out.
+function innerLayout(d, p) {
+  const pr = 1.5, ya = d.D / 2 - d.wall - Math.max(2.0, d.iR * 0.4 + 0.9), za = d.H - 2, ear = 1.6;
+  return { pr, ya, za, ear, ex: d.iW / 2 - 0.3, eb: 0.6 };
+}
+// Lock parts. box: shapes added to / cut from the box. lid: shapes added to / cut from the lid (built in place, top of box at z = H).
+function lockParts(k, d, p) {
+  const out = { boxAdd: [], boxCut: [], lidAdd: [], lidCut: [] };
+  if (!p.lock || p.lock === 'none' || !HINGED(p.lid)) return out;
+  const { D, H, W } = d, yf = -D / 2, t = clamp(p.lidT, 0.8, 6), g = clamp(p.tol, 0.1, 1);
+  if (p.lock === 'clasp') {
+    const cw = clamp(Math.min(16, W - 10), 6, 30), cb = 1.8, at = 1.4, yo = yf - cb - g - at, zt = H - 9 - 0.3;
+    out.boxAdd.push(prismX(k, [[yf + 0.5, H - 9], [yf - cb, H - 9], [yf - cb, H - 6.5], [yf, H - 3.5], [yf + 0.5, H - 3.5]], -cw / 2, cw));
+    out.lidAdd.push(slab(k, -cw / 2, cw / 2, yo, yo + at, H - 12.5, H + t));
+    out.lidAdd.push(slab(k, -cw / 2, cw / 2, yo, yf + 0.01, H, H + t));
+    out.lidAdd.push(prismX(k, [[yo + at - 0.01, zt], [yf - 0.25, zt], [yo + at - 0.01, zt - 3]], -cw / 2, cw));
+    out.lidAdd.push(slab(k, -cw / 2, cw / 2, yo - 3, yo + 0.01, H - 12.5, H - 12.5 + 1.2)); // little thumb lip
+  } else if (p.lock === 'padlock') {
+    const tw = 7, hd = 2.4;
+    out.boxAdd.push(slab(k, -tw, tw, yf - 12, yf + 0.5, H - 3, H - 0.25));
+    out.boxCut.push(cylZ(k, 0, yf - 7, H - 4, H, hd));
+    out.lidAdd.push(slab(k, -tw, tw, yf - 12, yf + 0.01, H, H + t));
+    out.lidCut.push(cylZ(k, 0, yf - 7, H - 1, H + t + 1, hd));
+  }
+  return out;
+}
+const LOCK_CHOICES = [['none', 'No lock'], ['clasp', 'Snap clasp on the front'], ['padlock', 'Padlock tab (hole for a padlock or zip tie)']];
 function hingeLayout(d, p) {
   const kr = 3.5, gap = p.tol + 0.3;
   const x0 = -d.W / 2 + d.R + 1, x1 = d.W / 2 - d.R - 1, seg = (x1 - x0 - 2 * gap) / 3;
@@ -220,7 +258,7 @@ function hingeLayout(d, p) {
 }
 function lidParamsOf(box) {
   const p = box.p;
-  return { boxId: box.id, lid: p.lid, w: p.w, d: p.d, h: p.h, wall: p.wall, radius: p.radius, tol: p.tol, lidT: p.lidT, stack: p.stack, floor: p.floor, style: 'plain' };
+  return { boxId: box.id, lid: p.lid, lock: p.lock || 'none', soften: p.soften, cols: p.cols, rows: p.rows, divT: p.divT, divH: p.divH, w: p.w, d: p.d, h: p.h, wall: p.wall, radius: p.radius, tol: p.tol, lidT: p.lidT, stack: p.stack, floor: p.floor, style: 'plain' };
 }
 function buildLid(p) {
   return withScope((k) => {
@@ -233,22 +271,50 @@ function buildLid(p) {
       const plate = rrPrism(k, lw, back + D / 2, 0.6, 0, t, 0, (back - D / 2) / 2);
       const grip = slab(k, -10, 10, -D / 2 + 1.5, -D / 2 + 3.5, t - 0.01, t + 1);
       lid = k(MF.union([plate, grip]));
-    } else if (p.lid === 'hinge' || p.lid === 'snaphinge') {
+    } else if (HINGED(p.lid)) {
       // Built where it sits on the box (top of box at z = H), then flipped to print plate-down.
-      const hk = hingeLayout(d, p);
+      const lk = lockParts(k, d, p);
       const plate = rrPrism(k, W, D, R, d.H, d.H + t);
+      if (p.lid === 'inner') {
+        const il = innerLayout(d, p), sock = il.pr + tol / 2, ears = [];
+        for (const s of [-1, 1]) {
+          const x0 = s > 0 ? il.ex - il.ear : -il.ex, x1 = s > 0 ? il.ex : -il.ex + il.ear;
+          let e = k(MF.hull([cylX(k, x0, x1, il.ya, il.za, 2.4), slab(k, x0, x1, il.ya - 2.4, il.ya + il.eb, d.H, d.H + 0.3)]));
+          e = k(e.intersect(slab(k, x0 - 1, x1 + 1, -1000, il.ya + il.eb, 0, 1000)));
+          ears.push(k(e.subtract(cylX(k, x0 - 1, x1 + 1, il.ya, il.za, sock))));
+        }
+        lid = k(MF.union([plate, ...ears, ...lk.lidAdd]));
+        // Carve away whatever would hit the box while the lid swings open to 90 degrees (with 0.2 mm to spare).
+        const boxP = { ...MAKER_DEFAULTS.storage, w: p.w, d: p.d, h: p.h, wall: p.wall, radius: p.radius, tol: p.tol, lidT: p.lidT, floor: p.floor, soften: p.soften ?? 1, stack: false, cols: p.cols ?? 1, rows: p.rows ?? 1, divT: p.divT ?? 1.2, divH: p.divH ?? 100, lid: 'inner', noPegs: true, lock: 'none' };
+        // Only the back of the box can get in the way: the lid's front half swings up and away.
+        const box = k(buildStorage(boxP, k).intersect(cylX(k, -W, W, il.ya, il.za, 14))), sweep = [];
+        for (let a = 4; a <= 92; a += 4) {
+          const r = k(k(k(box.translate([0, -il.ya, -il.za])).rotate([a, 0, 0])).translate([0, il.ya, il.za]));
+          sweep.push(r);
+          for (const [dy, dz] of [[0.3, 0.2]]) sweep.push(k(r.translate([0, dy, dz])));
+        }
+        lid = k(lid.subtract(k(MF.union(sweep))));
+        if (lid.simplify) lid = k(lid.simplify(0.01));
+        const parts = lid.decompose().map((m) => k(m));
+        if (parts.length > 1) { parts.sort((m, n) => n.volume() - m.volume()); lid = parts[0]; }
+        if (lk.lidCut.length) lid = k(lid.subtract(unionAll(k, lk.lidCut)));
+        lid = k(k(lid.rotate([180, 0, 0])).translate([0, 0, d.H + t]));
+        return manifoldToGeom(lid);
+      }
+      const hk = hingeLayout(d, p);
       const [x0, x1] = hk.segs[1];
       const knuckle = k(MF.hull([cylX(k, x0, x1, hk.y, hk.z, hk.kr), slab(k, x0, x1, D / 2 - 0.02, D / 2, d.H, d.H + t)]));
       const tab = slab(k, -8, 8, -D / 2 - 4, -D / 2 + 1, d.H, d.H + t);
-      if (p.lid === 'hinge') lid = k(k(MF.union([plate, knuckle, tab])).subtract(cylX(k, -W / 2 - 1, W / 2 + 1, hk.y, hk.z, hk.pin)));
+      if (p.lid === 'hinge') lid = k(k(MF.union([plate, knuckle, tab, ...lk.lidAdd])).subtract(cylX(k, -W / 2 - 1, W / 2 + 1, hk.y, hk.z, hk.pin)));
       else {
         const pr = SNAP_PEG, pl = (hk.segs[1][0] - hk.segs[0][1]) + snapSock(hk) - 0.3, pegs = [];
         for (const [xe, dir] of [[x0, -1], [x1, 1]]) {
           const xt = xe + dir * pl, ch = 0.6;
           pegs.push(k(MF.hull([cylX(k, Math.min(xe - dir, xt - dir * ch), Math.max(xe - dir, xt - dir * ch), hk.y, hk.z, pr), cylX(k, Math.min(xt, xt - dir * ch), Math.max(xt, xt - dir * ch), hk.y, hk.z, pr - 0.6)])));
         }
-        lid = k(MF.union([plate, knuckle, tab, ...pegs]));
+        lid = k(MF.union([plate, knuckle, tab, ...pegs, ...lk.lidAdd]));
       }
+      if (lk.lidCut.length) lid = k(lid.subtract(unionAll(k, lk.lidCut)));
       lid = k(k(lid.rotate([180, 0, 0])).translate([0, 0, d.H + t]));
     } else {
       // Friction fit: a plate with a lip that pushes into the box opening.
@@ -279,7 +345,7 @@ function buildBaseplate(p) {
 }
 
 const MAKER_DEFAULTS = {
-  storage: { style: 'plain', w: 80, d: 60, h: 40, wall: 1.6, floor: 1.2, radius: 4, soften: 1, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: false, scoopR: 12, notch: false, handles: false, label: 'none', labelText: 'SCREWS', lid: 'none', lidT: 2, tol: 0.3, stack: false },
+  storage: { style: 'plain', w: 80, d: 60, h: 40, wall: 1.6, floor: 1.2, radius: 4, soften: 1, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: false, scoopR: 12, notch: false, handles: false, label: 'none', labelText: 'SCREWS', lid: 'none', lock: 'none', lidT: 2, tol: 0.3, stack: false },
   gridfinity: { style: 'gridfinity', gx: 2, gy: 1, gz: 6, wall: 1.2, floor: 1.2, cols: 2, rows: 1, divT: 1.2, divH: 100, scoop: true, scoopR: 12, notch: false, handles: false, label: 'shelf', labelText: 'BITS', lip: true, magnets: false, tol: 0.3 },
   gfplate: { gx: 3, gy: 3 },
 };

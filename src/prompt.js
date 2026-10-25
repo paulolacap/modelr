@@ -54,10 +54,13 @@ const KW = [
   ['snap on|snap|clip on|removable|detachable', 'k:snap'],
   ['living|flexible|flex|bendy', 'k:living'],
   // lids and box features
+  ['inner hinged lid|inner hinge lid|hidden hinge lid|inner hinge|hidden hinge|invisible hinge|concealed hinge|internal hinge', 'lid:inner'],
   ['snap hinged lid|snap hinge lid|snap on hinged lid|snap fit hinged lid|snap fit hinge lid|snap fit lid|snap on lid hinge|snap lid hinge', 'lid:snaphinge'],
   ['hinged lid|hinge lid|lid with hinge|lid with a hinge|flip lid|flip top', 'lid:hinge'],
   ['sliding lid|slide lid|slide on lid|slide-on lid|sliding top', 'lid:slide'],
   ['push on lid|push lid|press fit lid|friction lid|snap lid|lid|lids|cover', 'lid:friction'],
+  ['padlock tab|padlock hole|padlock loop|zip tie tab', 'f:padtab'],
+  ['front clasp|snap clasp|clasp|clasps|lockable', 'f:clasp'],
   ['finger scoop|finger scoops|scoop|scoops|scooped', 'f:scoop'],
   ['finger notch|notch', 'f:notch'],
   ['handle|handles|handle slots|grips', 'f:handles'],
@@ -243,7 +246,12 @@ function planPrompt(src) {
       else if (P.flag('f:rounded')) { p.radius = 8; said.push('Extra-rounded corners'); }
       else if (P.flag('f:sharp')) { p.radius = 0; p.soften = 0; said.push('Sharp corners'); }
       const lt = P.tags.find((t) => t.tag.startsWith('lid:')) || (objs.some((t) => t.tag.startsWith('obj:hinge')) ? { tag: 'lid:hinge' } : null);
-      if (lt && !lt.neg) { p.lid = lt.tag.slice(4); said.push({ hinge: 'Hinged lid', snaphinge: 'Snap-on hinged lid', slide: 'Slide-on lid', friction: 'Push-on lid' }[p.lid]); }
+      if (lt && !lt.neg) { p.lid = lt.tag.slice(4); said.push({ hinge: 'Hinged lid', inner: 'Inner hinged lid (hidden hinge)', snaphinge: 'Snap-on hinged lid', slide: 'Slide-on lid', friction: 'Push-on lid' }[p.lid]); }
+      const wantLock = P.flag('f:clasp') ? 'clasp' : P.flag('f:padtab') ? 'padlock' : null;
+      if (wantLock) {
+        if (!['hinge', 'snaphinge', 'inner'].includes(p.lid)) { p.lid = 'inner'; said.push('Inner hinged lid (hidden hinge)'); }
+        p.lock = wantLock; said.push(wantLock === 'clasp' ? 'Snap clasp on the front' : 'Padlock tab');
+      }
       if (P.flag('f:stack') != null) { p.stack = P.flag('f:stack'); if (p.stack) said.push('Stacking foot'); }
     } else {
       if (P.flag('f:lip') === false) { p.lip = false; said.push('No stacking lip'); }
@@ -450,13 +458,13 @@ const ASK_WORDS = [
   ['cube', 'shape'], ['cylinder', 'shape'], ['sphere', 'shape'], ['cone', 'shape'], ['pyramid', 'shape'], ['tube', 'shape'], ['ring', 'shape'], ['star', 'shape'], ['heart', 'shape'], ['hexagon', 'shape'], ['wedge', 'shape'],
   ['cup', 'spun shape'], ['bowl', 'spun shape'], ['vase', 'spun shape'], ['knob', 'spun shape'],
   ['compartments', 'e.g. 3 x 2 compartments'], ['dividers', 'e.g. 2 dividers'], ['walls', 'e.g. 2 mm walls'], ['floor', 'e.g. floor 1.5 mm'], ['corners', 'e.g. corners 5 mm'],
-  ['hinged lid', 'lid on a hinge'], ['snap hinged lid', 'pegs click in'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
+  ['hinged lid', 'lid on a hinge'], ['inner hinged lid', 'hidden hinge'], ['clasp', 'front snap lock'], ['padlock tab', 'hole for a lock'], ['snap hinged lid', 'pegs click in'], ['slide lid', 'lid slides in'], ['push on lid', 'lid pushes on'], ['scoops', 'finger scoops'], ['notch', 'finger notch'], ['handles', 'handle slots'],
   ['label shelf', 'spot for a label'], ['label', 'add text after it'], ['stackable', 'stacking foot'], ['magnets', 'Gridfinity magnet holes'], ['engraved', 'text cut in'], ['raised', 'text sticks out'],
   ['text', 'then your words'], ['hole', 'e.g. 4 mm hole'], ['screw holes', 'mounting holes'], ['no screw holes', 'glue instead'], ['knuckles', 'e.g. 5 knuckles'],
   ['wide', 'e.g. 50 mm wide'], ['tall', 'e.g. 40 mm tall'], ['deep', 'e.g. 30 mm deep'], ['thick', 'e.g. 3 mm thick'], ['diameter', 'e.g. diameter 60 mm'], ['mm', 'millimetres'], ['cm', 'centimetres'], ['inch', '25.4 mm'],
 ];
 const ASK_NEXT = {
-  storage: ['compartments', 'hinged lid', 'slide lid', 'push on lid', 'scoops', 'label', 'walls', 'handles', 'stackable', 'snap clip'],
+  storage: ['compartments', 'hinged lid', 'inner hinged lid', 'clasp', 'slide lid', 'push on lid', 'scoops', 'label', 'walls', 'handles', 'stackable', 'snap clip'],
   gridfinity: ['units', 'compartments', 'scoops', 'label shelf', 'magnets', 'no lip'],
   keychain: ['text', 'hole', 'engraved', 'thick'], sign: ['text', 'screw holes', 'engraved', 'thick'], coaster: ['text', 'engraved', 'thick'],
   joint: ['wide', 'tall', 'deep', 'gap'],

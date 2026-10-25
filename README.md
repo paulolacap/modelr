@@ -32,6 +32,8 @@ connection the first time to load Three.js). Export STL saves a `.stl` file dire
   Each is a matching pair of blocks, printed flat side by side, with an adjustable fit gap
 - Type what you want: a no-AI keyword box ("box 120 x 80 x 50 mm, 3 x 2 compartments, hinged lid").
   It suggests words as you type and shows what it understood and what it skipped
+- Box locks and an inner hinge: a hidden hinge (pegs and sockets inside the box, so the outside stays a clean
+  rectangle, opens about 90°), a snap clasp for the front and a padlock tab
 - Print check: printer bed size, floating parts, overhangs, thin walls, filament and time estimate
 
 ## Source
@@ -42,3 +44,7 @@ Libraries: three@0.186.1, manifold-3d@3.5.4 (loaded from jsDelivr).
 ## Build
 `npm install` (for the Manifold WASM file), then `python3 build.py`. It writes `index.html` (the whole app in
 one file, open it in a browser) and `dist/` (Artifact page and a local test page).
+
+## Deploy
+It is a single static file, `index.html`, so any static host works. `vercel.json` is included for Vercel
+(no build step). For Cloudflare Pages use: build command empty, output directory `/`.
